@@ -50,21 +50,27 @@
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
   }); }
 
-  function buildHref(hit){
-    // Prefer the backend-provided url_path so each result type routes to the
-    // correct page (product / category / page). Fall back to constructing a
-    // product URL from the code only if url_path is missing.
-    if (hit.url_path) {
-      if (hit.url_path.indexOf('http') === 0) return hit.url_path;
-      return 'https://www.competitivefoam.com' +
-        (hit.url_path.charAt(0) === '/' ? '' : '/') + hit.url_path;
-    }
-    return 'https://www.competitivefoam.com/mm5/merchant.mvc?Screen=PROD&Product_Code=' +
-      encodeURIComponent(hit.code);
+  function appendTrackingParam(href, hash){
+    var sep = href.indexOf('?') === -1 ? '?' : '&';
+    return href + sep + 'ff_q=' + encodeURIComponent(hash);
   }
 
-  function cardHTML(hit){
-    var href = buildHref(hit);
+  function buildHref(hit, hash){
+    var base;
+    if (hit.url_path) {
+      base = (hit.url_path.indexOf('http') === 0)
+        ? hit.url_path
+        : 'https://www.competitivefoam.com' +
+          (hit.url_path.charAt(0) === '/' ? '' : '/') + hit.url_path;
+    } else {
+      base = 'https://www.competitivefoam.com/mm5/merchant.mvc?Screen=PROD&Product_Code=' +
+        encodeURIComponent(hit.code);
+    }
+    return appendTrackingParam(base, hash);
+  }
+
+  function cardHTML(hit, hash){
+    var href = buildHref(hit, hash);
     var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
     var type = hit.type || 'product';
     var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:10px;' +
@@ -86,7 +92,7 @@
       '</div>';
   }
 
-  function injectHits(hits){
+  function injectHits(hits, ffQ){
     if (!hits || !hits.length) return;
     var container = document.querySelector('section.x-product-list:not(.t-featured-products)');
     if (!container) {
@@ -110,9 +116,38 @@
     container.appendChild(banner);
     hits.forEach(function(h){
       var tmp = document.createElement('div');
-      tmp.innerHTML = cardHTML(h);
+      tmp.innerHTML = cardHTML(h, ffQ || '');
       container.appendChild(tmp.firstChild);
     });
+  }
+
+  function pingConversion(){
+    // Runs on any page (PROD, BASK, OCNF, etc). If the current URL carries an
+    // ff_q tracking hash, tell the backend which kind of post-search event
+    // this is (view vs order). Backend joins the hash back to the original
+    // query for downstream analysis.
+    var p = new URLSearchParams(location.search);
+    var h = p.get('ff_q');
+    if (!h) return;
+    var screen = (p.get('Screen') || '').toUpperCase();
+    var event = 'view';
+    if (screen === 'OCNF' || /invoice|order[-_ ]?confirmation/i.test(document.title)) {
+      event = 'order';
+    }
+    var api = 'https://a-foamfactory-workstation.tail1178b.ts.net/log_conversion';
+    try {
+      // navigator.sendBeacon fire-and-forget so it survives page teardown
+      // during checkout redirects.
+      var data = JSON.stringify({ ff_q: h, event: event, screen: screen,
+                                  url: location.href, ref: document.referrer });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(api, new Blob([data], {type: 'application/json'}));
+      } else {
+        fetch(api, { method: 'POST', body: data,
+                     headers: {'Content-Type': 'application/json'},
+                     keepalive: true });
+      }
+    } catch (e) { /* silent — tracking must never break the page */ }
   }
 
   function injectNoindex(){
@@ -128,6 +163,7 @@
   }
 
   function run(){
+    pingConversion();
     if (!onSearchPage()) return;
     injectNoindex();
     var q = getQuery();
@@ -140,7 +176,7 @@
       body: JSON.stringify({ query: q, limit: 20 }),
     })
       .then(function(r){ return r.json(); })
-      .then(function(data){ injectHits(data.hits || []); })
+      .then(function(data){ injectHits(data.hits || [], data.ff_q); })
       .catch(function(err){ console.warn('[foamfactory-ai] search failed:', err); });
   }
 
