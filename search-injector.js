@@ -115,8 +115,21 @@
     });
   }
 
+  function injectNoindex(){
+    // Search result pages should not be indexed (Amy Heath, 4/23 SEO memo —
+    // ?Search= URLs would create a duplicate-content / parameter-indexing
+    // footprint). Client-side injection is belt-and-suspenders; the proper
+    // fix is adding this to Miva's SRCH screen template server-side.
+    if (document.querySelector('meta[name="robots"]')) return;
+    var m = document.createElement('meta');
+    m.name = 'robots';
+    m.content = 'noindex,follow';
+    document.head.appendChild(m);
+  }
+
   function run(){
     if (!onSearchPage()) return;
+    injectNoindex();
     var q = getQuery();
     if (!q) return;
     fetch(API, {
