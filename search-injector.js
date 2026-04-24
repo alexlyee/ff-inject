@@ -56,14 +56,19 @@
   }
 
   function buildHref(hit, hash){
+    // location.origin lets the same jsDelivr-hosted script work on both
+    // competitivefoam.com (dev) and foambymail.com (live) without rebuild.
+    // Absolute url_path (e.g. blog links back to foambymail.com) are respected
+    // as-is; relative url_path resolves against whichever store is serving
+    // the page the customer is currently on.
+    var origin = location.origin;
     var base;
     if (hit.url_path) {
       base = (hit.url_path.indexOf('http') === 0)
         ? hit.url_path
-        : 'https://www.competitivefoam.com' +
-          (hit.url_path.charAt(0) === '/' ? '' : '/') + hit.url_path;
+        : origin + (hit.url_path.charAt(0) === '/' ? '' : '/') + hit.url_path;
     } else {
-      base = 'https://www.competitivefoam.com/mm5/merchant.mvc?Screen=PROD&Product_Code=' +
+      base = origin + '/mm5/merchant.mvc?Screen=PROD&Product_Code=' +
         encodeURIComponent(hit.code);
     }
     return appendTrackingParam(base, hash);
