@@ -38,7 +38,12 @@
   var BADGE_LABEL = { product: 'Product', category: 'Category', page: 'Page' };
 
   function onSearchPage(){
-    return location.search.indexOf('Screen=SRCH') !== -1;
+    // Miva's Friendly URLs feature rewrites the canonical
+    // /mm5/merchant.mvc?Screen=SRCH&Search=... to /product-search.html?Search=...
+    // so we have to recognize both. The storefront search box uses the friendly
+    // form; only direct navigation hits the canonical form.
+    return location.search.indexOf('Screen=SRCH') !== -1 ||
+           location.pathname.indexOf('/product-search') !== -1;
   }
 
   function getQuery(){
