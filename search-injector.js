@@ -82,13 +82,24 @@
   function buildImageSrc(hit){
     // Backend returns hit.image as a relative path (e.g. 'graphics/00000001/foo.jpg')
     // when Miva has an image for this product, empty string otherwise.
-    // location.origin lets the same value resolve correctly on competitivefoam.com
-    // (dev) and foambymail.com (live) without rebuild. Fallback to the inline
-    // SVG placeholder when Miva has no image for the product.
+    //
+    // Miva's image-URL convention on this storefront: the API returns the
+    // original-file path under graphics/00000001/, but those root-level
+    // originals are inconsistently present (most 404, some 200). Miva
+    // auto-generates a WebP variant in the /1/ subdirectory under
+    // /Merchant2/, and THAT variant exists for every catalog image.
+    // Transform: graphics/00000001/foo.jpg → Merchant2/graphics/00000001/1/foo.webp
+    //
+    // location.origin keeps this working on competitivefoam.com (dev) and
+    // foambymail.com (live) without rebuild — both Miva installs follow the
+    // same image-pipeline convention.
     if (hit.image) {
       var rel = hit.image;
       if (rel.indexOf('http') === 0) return rel;
-      return location.origin + (rel.charAt(0) === '/' ? '' : '/') + rel;
+      var path = rel
+        .replace(/^\/?graphics\/(\d+)\//, 'Merchant2/graphics/$1/1/')
+        .replace(/\.(jpe?g|png|gif)$/i, '.webp');
+      return location.origin + '/' + path;
     }
     return PLACEHOLDER_URI;
   }
