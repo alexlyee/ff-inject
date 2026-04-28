@@ -79,6 +79,20 @@
     return appendTrackingParam(base, hash);
   }
 
+  function buildImageSrc(hit){
+    // Backend returns hit.image as a relative path (e.g. 'graphics/00000001/foo.jpg')
+    // when Miva has an image for this product, empty string otherwise.
+    // location.origin lets the same value resolve correctly on competitivefoam.com
+    // (dev) and foambymail.com (live) without rebuild. Fallback to the inline
+    // SVG placeholder when Miva has no image for the product.
+    if (hit.image) {
+      var rel = hit.image;
+      if (rel.indexOf('http') === 0) return rel;
+      return location.origin + (rel.charAt(0) === '/' ? '' : '/') + rel;
+    }
+    return PLACEHOLDER_URI;
+  }
+
   function cardHTML(hit, hash){
     var href = buildHref(hit, hash);
     var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
@@ -87,11 +101,12 @@
       'font-size:11px;font-weight:600;letter-spacing:.02em;margin-bottom:6px;' +
       (BADGE_STYLES[type] || BADGE_STYLES.product);
     var badgeText = BADGE_LABEL[type] || type;
+    var imgSrc = buildImageSrc(hit);
     return '' +
       '<div class="o-layout__item u-text-center x-product-list__item" data-ai-rank="1" data-ai-type="' + esc(type) + '">' +
         '<a class="u-block x-product-list__link" href="' + href + '" title="' + esc(hit.name) + '">' +
           '<figure class="x-product-list__figure">' +
-            '<img class="x-product-list__image" src="' + PLACEHOLDER_URI + '" alt="" loading="lazy" style="width:100%;height:auto;display:block;margin:0 auto" width="360" height="360">' +
+            '<img class="x-product-list__image" src="' + imgSrc + '" alt="" loading="lazy" style="width:100%;height:auto;display:block;margin:0 auto" width="360" height="360" onerror="this.src=\'' + PLACEHOLDER_URI + '\';this.onerror=null">' +
             '<figcaption>' +
               '<span style="' + badgeCss + '">' + esc(badgeText) + '</span><br>' +
               '<strong class="x-product-list__name">' + esc(hit.name) + '</strong>' +
