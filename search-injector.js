@@ -204,11 +204,23 @@
     injectNoindex();
     var q = getQuery();
     if (!q) return;
+
+    // Check if the server-side component module already fetched results.
+    // If #ff-ai-data exists with data-response, use it directly and skip
+    // the redundant backend call. This is the optimized path when the
+    // Miva module's ComponentModule_Initialize fires before this JS.
+    var prefetched = document.getElementById('ff-ai-data');
+    if (prefetched && prefetched.getAttribute('data-response')) {
+      try {
+        var data = JSON.parse(prefetched.getAttribute('data-response'));
+        injectHits(data.hits || [], data.ff_q);
+        return;
+      } catch(e) { /* fall through to fetch */ }
+    }
+
     fetch(API, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      // No `types` filter — categories and blog/resource pages surface alongside
-      // products per Carlo's 4/14 Path B spec and Amy Heath's 4/23 SEO note.
       body: JSON.stringify({ query: q, limit: 20 }),
     })
       .then(function(r){ return r.json(); })
