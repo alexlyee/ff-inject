@@ -1,12 +1,12 @@
 /* Foam Factory AI Search — storefront DOM injector.
    Runs on every page via the head_tag resource group. On SRCH pages, fetches
-   AI-ranked results from the Tailscale-funneled backend and replaces Miva's
+   AI-ranked results from the Cloudflare-tunneled backend and replaces Miva's
    native product list with AI hits using Miva's own .x-product-list markup.
    Categories and Miva pages surface alongside products; each hit renders with
    a type badge so customers can tell products apart from categories apart from
    resource pages at a glance. */
 (function(){
-  var API = 'https://foam-desktop.tail1178b.ts.net/search';
+  var API = 'https://these-coastal-radios-gazette.trycloudflare.com/search';
 
   // Inline SVG placeholder (data URI). Branded gray gradient tile — stands in
   // for real product photos until per-product AI-generated imagery lands
@@ -170,7 +170,7 @@
     if (screen === 'OCNF' || /invoice|order[-_ ]?confirmation/i.test(document.title)) {
       event = 'order';
     }
-    var api = 'https://foam-desktop.tail1178b.ts.net/log_conversion';
+    var api = 'https://these-coastal-radios-gazette.trycloudflare.com/log_conversion';
     try {
       // navigator.sendBeacon fire-and-forget so it survives page teardown
       // during checkout redirects.
