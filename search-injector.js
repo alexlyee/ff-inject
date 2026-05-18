@@ -6,7 +6,7 @@
    a type badge so customers can tell products apart from categories apart from
    resource pages at a glance. */
 (function(){
-  var API = 'https://these-coastal-radios-gazette.trycloudflare.com/search';
+  var API = 'https://debian-rise-subscribers-schools.trycloudflare.com/search';
 
   // Inline SVG placeholder (data URI). Branded gray gradient tile — stands in
   // for real product photos until per-product AI-generated imagery lands
@@ -170,7 +170,7 @@
     if (screen === 'OCNF' || /invoice|order[-_ ]?confirmation/i.test(document.title)) {
       event = 'order';
     }
-    var api = 'https://these-coastal-radios-gazette.trycloudflare.com/log_conversion';
+    var api = 'https://debian-rise-subscribers-schools.trycloudflare.com/log_conversion';
     try {
       // navigator.sendBeacon fire-and-forget so it survives page teardown
       // during checkout redirects.
