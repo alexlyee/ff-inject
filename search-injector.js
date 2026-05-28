@@ -316,10 +316,15 @@
       } catch(e) { /* fall through to fetch */ }
     }
 
+    // On foambymail.com, request products only so the backend fills the
+    // full limit with products instead of a mix that gets filtered down.
+    var payload = { query: q, limit: 20 };
+    if (IS_FBM()) payload.types = ['product'];
+
     fetch(API, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ query: q, limit: 20 }),
+      body: JSON.stringify(payload),
     })
       .then(function(r){ return r.json(); })
       .then(function(data){ injectHits(data.hits || [], data.ff_q); })
