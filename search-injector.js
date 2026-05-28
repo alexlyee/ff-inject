@@ -84,6 +84,9 @@
   }); }
 
   function appendTrackingParam(href, hash){
+    // Miva's friendly URLs (*.html) return 404 with unknown query params —
+    // even product-display.html?Product_Code=X&ff_q=Y breaks. Skip all .html URLs.
+    if (href.indexOf('.html') !== -1) return href;
     var sep = href.indexOf('?') === -1 ? '?' : '&';
     return href + sep + 'ff_q=' + encodeURIComponent(hash);
   }
