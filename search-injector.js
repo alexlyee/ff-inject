@@ -140,7 +140,6 @@
             '</span>' +
           '</a>' +
           '<div class="column two-thirds large-three-sixths medium-three-sixths small-three-sixths">' +
-            '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
             '<h4><a href="' + href + '" class="blue">' + esc(hit.name) + '</a></h4>' +
             (hit.code ? '<span class="product-code">Code: ' + esc(hit.code) + '</span>' : '') +
             (snippet ? '<p>' + esc(snippet) + ' <a href="' + href + '"><span class="decoration">Read More</span></a></p>' : '') +
@@ -211,13 +210,19 @@
       }
     }
 
-    var bannerClass = IS_FBM() ? 'column whole' : 'o-layout__item u-width-12 u-text-center u-font-small';
-    var banner = document.createElement('div');
-    banner.className = bannerClass;
-    banner.style.cssText = 'padding:10px;background:#f7f9ff;border-left:3px solid #2d6cdf;margin-bottom:12px;color:#2d6cdf;' + (IS_FBM() ? 'font-size:14px;' : '');
-    banner.textContent = 'AI-ranked results for "' + getQuery() + '" (' + hits.length + ' matches)';
-    container.appendChild(banner);
-    hits.forEach(function(h){
+    // On foambymail.com product search, show only products (the native page shows products only).
+    // On Shadows/dev store, show all types with the banner.
+    var filtered = IS_FBM() ? hits.filter(function(h){ return (h.type || 'product') === 'product'; }) : hits;
+
+    if (!IS_FBM()) {
+      var bannerClass = 'o-layout__item u-width-12 u-text-center u-font-small';
+      var banner = document.createElement('div');
+      banner.className = bannerClass;
+      banner.style.cssText = 'padding:10px;background:#f7f9ff;border-left:3px solid #2d6cdf;margin-bottom:12px;color:#2d6cdf;';
+      banner.textContent = 'AI-ranked results for "' + getQuery() + '" (' + hits.length + ' matches)';
+      container.appendChild(banner);
+    }
+    filtered.forEach(function(h){
       var tmp = document.createElement('div');
       tmp.innerHTML = cardHTML(h, ffQ || '');
       container.appendChild(tmp.firstChild);
