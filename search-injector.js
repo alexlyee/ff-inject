@@ -8,6 +8,21 @@
 (function(){
   var API = 'https://debian-rise-subscribers-schools.trycloudflare.com/search';
 
+  // Anonymous per-browser session id, stored first-party in localStorage on
+  // the storefront. No PII — just a random tag so the backend can count
+  // distinct sessions and reconstruct each one's query path for retroactive
+  // analysis. Persists across page loads; regenerates only if cleared.
+  function sessionId(){
+    try {
+      var k = 'ff_sid', v = localStorage.getItem(k);
+      if (!v) {
+        v = (Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+        localStorage.setItem(k, v);
+      }
+      return v;
+    } catch(e) { return ''; }  // private mode / storage blocked → anonymous
+  }
+
   // Immediately hide the native product list on search pages to prevent
   // flash of native content (FOUC) before AI results load. The CSS rule
   // is injected synchronously in <head>, so it takes effect before the
@@ -379,6 +394,7 @@
       // navigator.sendBeacon fire-and-forget so it survives page teardown
       // during checkout redirects.
       var data = JSON.stringify({ ff_q: h, event: event, screen: screen,
+                                  session: sessionId(),
                                   url: location.href, ref: document.referrer });
       if (navigator.sendBeacon) {
         navigator.sendBeacon(api, new Blob([data], {type: 'application/json'}));
@@ -429,8 +445,12 @@
     var limit = (ppp > 0 && ppp < 9999) ? ppp : (ppp >= 9999 ? 100 : 12);
 
     // Product search: products only. Site search: all types.
-    var payload = { query: q, limit: limit };
     var isSiteSearch = onSiteSearchPage();
+    var payload = {
+      query: q, limit: limit,
+      surface: isSiteSearch ? 'site' : 'product',  // which search page (analytics)
+      session_id: sessionId()                       // anon distinct-visitor tag
+    };
     if (IS_FBM() && !isSiteSearch) payload.types = ['product'];
 
     var t0 = performance.now();
@@ -442,6 +462,13 @@
       .then(function(r){ return r.json(); })
       .then(function(data){
         var tFetch = Math.round(performance.now() - t0);
+        // Kill switch: backend says search is disabled → render nothing,
+        // reveal native Miva results. Site-wide off switch, no redeploy.
+        if (data.disabled) {
+          var hs = document.getElementById('ff-ai-hide');
+          if (hs) hs.remove();
+          return;
+        }
         injectHits(data.hits || [], data.ff_q);
         var tTotal = Math.round(performance.now() - t0);
         // Store debug info for console access via ffDebug()
