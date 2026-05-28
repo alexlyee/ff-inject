@@ -150,10 +150,14 @@
     // Used on the "Search Site" page (Screen=SEARCH) to replace Google CSE.
     var href = buildHref(hit, hash);
     var type = hit.type || 'product';
-    var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:10px;' +
+    // Square badge (border-radius:2px) to match foambymail.com's rectangular UI.
+    var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:2px;' +
       'font-size:11px;font-weight:600;letter-spacing:.02em;margin-right:8px;' +
       (BADGE_STYLES[type] || BADGE_STYLES.product);
+    // Label page-type hits as "Blog" when they're blog posts (/blog/ URL),
+    // since all page-type results in this catalog are WP blog articles.
     var badgeText = BADGE_LABEL[type] || type;
+    if (type === 'page' && (hit.url_path || '').indexOf('/blog/') !== -1) badgeText = 'Blog';
     var imgSrc = buildImageSrc(hit);
     var snippet = (hit.snippet || '').substring(0, 160);
     if (snippet && hit.snippet && hit.snippet.length > 160) snippet += '...';
