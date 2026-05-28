@@ -316,9 +316,15 @@
       } catch(e) { /* fall through to fetch */ }
     }
 
+    // Read ProductsPerPage from URL (Miva's VIEW 12/24/All control).
+    // 12 = default, 24 = expanded, 9999 = All. Empty/missing = 12.
+    var urlParams = new URLSearchParams(location.search);
+    var ppp = parseInt(urlParams.get('ProductsPerPage'), 10);
+    var limit = (ppp > 0 && ppp < 9999) ? ppp : (ppp >= 9999 ? 100 : 12);
+
     // On foambymail.com, request products only so the backend fills the
     // full limit with products instead of a mix that gets filtered down.
-    var payload = { query: q, limit: 20 };
+    var payload = { query: q, limit: limit };
     if (IS_FBM()) payload.types = ['product'];
 
     fetch(API, {
