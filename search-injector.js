@@ -16,10 +16,12 @@
   // arrive (backend down, JS error, param mismatch, etc.) so the page
   // is never permanently blank.
   if (location.search.indexOf('Screen=SRCH') !== -1 ||
-      location.pathname.indexOf('/product-search') !== -1) {
+      location.search.indexOf('Screen=SEARCH') !== -1 ||
+      location.pathname.indexOf('/product-search') !== -1 ||
+      location.pathname.indexOf('/search.html') !== -1) {
     var hideStyle = document.createElement('style');
     hideStyle.id = 'ff-ai-hide';
-    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products) { visibility: hidden; min-height: 200px; }';
+    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item { visibility: hidden; min-height: 200px; }';
     document.head.appendChild(hideStyle);
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
@@ -56,20 +58,25 @@
   };
   var BADGE_LABEL = { product: 'Product', category: 'Category', page: 'Page' };
 
-  function onSearchPage(){
-    // Miva's Friendly URLs feature rewrites the canonical
-    // /mm5/merchant.mvc?Screen=SRCH&Search=... to /product-search.html?Search=...
-    // so we have to recognize both. The storefront search box uses the friendly
-    // form; only direct navigation hits the canonical form.
+  function onProductSearchPage(){
     return location.search.indexOf('Screen=SRCH') !== -1 ||
            location.pathname.indexOf('/product-search') !== -1;
   }
 
+  function onSiteSearchPage(){
+    // "Search Site" submits to Screen=SEARCH with q= param (Google CSE page)
+    return location.search.indexOf('Screen=SEARCH') !== -1 ||
+           location.pathname.indexOf('/search.html') !== -1;
+  }
+
+  function onSearchPage(){
+    return onProductSearchPage() || onSiteSearchPage();
+  }
+
   function getQuery(){
-    // Miva uses 'Search' (canonical/friendly URL) and 'search' (powrsrch form
-    // submissions, pagination links). URLSearchParams.get() is case-sensitive.
     var p = new URLSearchParams(location.search);
-    return (p.get('Search') || p.get('search') || '').trim();
+    // Product search: 'Search' or 'search'. Site search: 'q'.
+    return (p.get('Search') || p.get('search') || p.get('q') || '').trim();
   }
 
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
@@ -135,6 +142,44 @@
     return _is_fbm;
   }
 
+  function siteSearchCardHTML(hit, hash){
+    // Site search card — shows all types with badge, breadcrumb, and richer layout.
+    // Used on the "Search Site" page (Screen=SEARCH) to replace Google CSE.
+    var href = buildHref(hit, hash);
+    var type = hit.type || 'product';
+    var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:10px;' +
+      'font-size:11px;font-weight:600;letter-spacing:.02em;margin-right:8px;' +
+      (BADGE_STYLES[type] || BADGE_STYLES.product);
+    var badgeText = BADGE_LABEL[type] || type;
+    var imgSrc = buildImageSrc(hit);
+    var snippet = (hit.snippet || '').substring(0, 160);
+    if (snippet && hit.snippet && hit.snippet.length > 160) snippet += '...';
+    var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
+    var startPrice = (hit.starting_at_price && hit.starting_at_price > 0) ? ('$' + Number(hit.starting_at_price).toFixed(2)) : '';
+    var priceHTML = startPrice
+      ? '<span style="color:#c46a1e;font-weight:600;font-size:14px;margin-left:auto;">Starting at ' + startPrice + '</span>'
+      : (price ? '<span style="color:#c46a1e;font-weight:600;font-size:14px;margin-left:auto;">' + price + '</span>' : '');
+    // Breadcrumb from hit.breadcrumb (plain text "Category > Subcategory > Name")
+    var breadcrumb = hit.breadcrumb ? '<div style="font-size:12px;color:#888;margin-top:4px;font-family:ui-monospace,monospace;">' + esc(hit.breadcrumb).substring(0, 120) + '</div>' : '';
+    var imgHTML = imgSrc && imgSrc !== PLACEHOLDER_URI
+      ? '<a href="' + href + '" style="flex:0 0 80px;"><img src="' + imgSrc + '" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:4px;" onerror="this.parentNode.style.display=\'none\'"></a>'
+      : '';
+    return '' +
+      '<div class="column whole" data-ai-rank="1" data-ai-type="' + esc(type) + '" style="padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;align-items:flex-start;">' +
+        imgHTML +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">' +
+            '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
+            '<a href="' + href + '" style="font-weight:600;color:#2d6cdf;text-decoration:none;font-size:15px;">' + esc(hit.name) + '</a>' +
+            (hit.code ? '<span style="font-family:monospace;font-size:13px;color:#888;">' + esc(hit.code) + '</span>' : '') +
+            priceHTML +
+          '</div>' +
+          (snippet ? '<div style="color:#555;font-size:13px;margin-top:4px;line-height:1.4;">' + esc(snippet) + '</div>' : '') +
+          breadcrumb +
+        '</div>' +
+      '</div>';
+  }
+
   function cardHTML(hit, hash){
     var href = buildHref(hit, hash);
     var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
@@ -193,9 +238,23 @@
   function injectHits(hits, ffQ){
     if (!hits || !hits.length) return;
 
+    var isSiteSearch = onSiteSearchPage();
     var container;
-    if (IS_FBM()) {
-      // foambymail.com: product list is #js-product-list
+
+    if (isSiteSearch) {
+      // Site search (Screen=SEARCH): replace Google CSE content
+      container = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'ff-site-search-results';
+        container.className = 'row';
+        var host = document.querySelector('.main-content') || document.querySelector('main') || document.body;
+        host.appendChild(container);
+      } else {
+        container.innerHTML = '';
+      }
+    } else if (IS_FBM()) {
+      // foambymail.com product search: product list is #js-product-list
       container = document.querySelector('#js-product-list');
       if (!container) {
         var noResults = document.querySelector('.italic') ||
@@ -231,11 +290,27 @@
       }
     }
 
-    // On foambymail.com product search, show only products (the native page shows products only).
-    // On Shadows/dev store, show all types with the banner.
-    var filtered = IS_FBM() ? hits.filter(function(h){ return (h.type || 'product') === 'product'; }) : hits;
-
-    if (!IS_FBM()) {
+    // Filter and render based on page type
+    var filtered;
+    if (isSiteSearch) {
+      // Site search: show all types, exclude Canada-only on US site
+      filtered = hits.filter(function(h){
+        if (h.url_path && h.url_path.indexOf('canada.foambymail.com') !== -1) return false;
+        return true;
+      });
+    } else if (IS_FBM()) {
+      // Product search on FBM: products only, exclude Canada-only.
+      // Canada-only products have url_path pointing to canada.foambymail.com
+      // AND no US-specific url_path (url_path === canada_url_path).
+      filtered = hits.filter(function(h){
+        if ((h.type || 'product') !== 'product') return false;
+        var isCanadaOnly = (h.url_path && h.url_path.indexOf('canada.foambymail.com') !== -1) &&
+                           (!h.url_path.match(/Product_Code=/));
+        return !isCanadaOnly;
+      });
+    } else {
+      // Shadows/dev store: all types with banner
+      filtered = hits;
       var bannerClass = 'o-layout__item u-width-12 u-text-center u-font-small';
       var banner = document.createElement('div');
       banner.className = bannerClass;
@@ -243,9 +318,13 @@
       banner.textContent = 'AI-ranked results for "' + getQuery() + '" (' + hits.length + ' matches)';
       container.appendChild(banner);
     }
+
+    // Use the site search card layout (with badges + breadcrumbs) on the
+    // Search Site page; use the native product card layout elsewhere.
+    var cardFn = isSiteSearch ? siteSearchCardHTML : cardHTML;
     filtered.forEach(function(h){
       var tmp = document.createElement('div');
-      tmp.innerHTML = cardHTML(h, ffQ || '');
+      tmp.innerHTML = cardFn(h, ffQ || '');
       container.appendChild(tmp.firstChild);
     });
 
@@ -322,25 +401,51 @@
     var ppp = parseInt(urlParams.get('ProductsPerPage'), 10);
     var limit = (ppp > 0 && ppp < 9999) ? ppp : (ppp >= 9999 ? 100 : 12);
 
-    // On foambymail.com, request products only so the backend fills the
-    // full limit with products instead of a mix that gets filtered down.
+    // Product search: products only. Site search: all types.
     var payload = { query: q, limit: limit };
-    if (IS_FBM()) payload.types = ['product'];
+    var isSiteSearch = onSiteSearchPage();
+    if (IS_FBM() && !isSiteSearch) payload.types = ['product'];
 
+    var t0 = performance.now();
     fetch(API, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     })
       .then(function(r){ return r.json(); })
-      .then(function(data){ injectHits(data.hits || [], data.ff_q); })
+      .then(function(data){
+        var tFetch = Math.round(performance.now() - t0);
+        injectHits(data.hits || [], data.ff_q);
+        var tTotal = Math.round(performance.now() - t0);
+        // Store debug info for console access via ffDebug()
+        window._ffDebug = {
+          query: q, limit: limit, types: payload.types || 'all',
+          backendMs: data.elapsed_ms, fetchMs: tFetch, renderMs: tTotal - tFetch,
+          totalMs: tTotal, hitsReturned: (data.hits || []).length,
+          hitsRendered: document.querySelectorAll('[data-ai-type]').length,
+          ff_q: data.ff_q, isFBM: IS_FBM()
+        };
+      })
       .catch(function(err){
         console.warn('[foamfactory-ai] search failed:', err);
-        // On failure, reveal native results so the page isn't blank
         var hideStyle = document.getElementById('ff-ai-hide');
         if (hideStyle) hideStyle.remove();
       });
   }
+
+  // Console debug command: type ffDebug() in browser console
+  window.ffDebug = function() {
+    if (!window._ffDebug) { console.log('[foamfactory-ai] no search has run yet'); return; }
+    var d = window._ffDebug;
+    console.log(
+      '[foamfactory-ai] query="' + d.query + '"  limit=' + d.limit + '  types=' + d.types +
+      '\n  backend: ' + d.backendMs + 'ms  fetch: ' + d.fetchMs + 'ms  render: ' + d.renderMs +
+      'ms  total: ' + d.totalMs + 'ms' +
+      '\n  hits returned: ' + d.hitsReturned + '  rendered: ' + d.hitsRendered +
+      '  isFBM: ' + d.isFBM + '  ff_q: ' + d.ff_q
+    );
+    return d;
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);
