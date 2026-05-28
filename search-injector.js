@@ -8,6 +8,18 @@
 (function(){
   var API = 'https://debian-rise-subscribers-schools.trycloudflare.com/search';
 
+  // Immediately hide the native product list on search pages to prevent
+  // flash of native content (FOUC) before AI results load. The CSS rule
+  // is injected synchronously in <head>, so it takes effect before the
+  // browser paints the body. injectHits() removes this after replacing.
+  if (location.search.indexOf('Screen=SRCH') !== -1 ||
+      location.pathname.indexOf('/product-search') !== -1) {
+    var hideStyle = document.createElement('style');
+    hideStyle.id = 'ff-ai-hide';
+    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products) { visibility: hidden; min-height: 200px; }';
+    document.head.appendChild(hideStyle);
+  }
+
   // Inline SVG placeholder (data URI). Branded gray gradient tile — stands in
   // for real product photos until per-product AI-generated imagery lands
   // (FLUX.1-schnell on the Ascent, planned). Using a data URI means no
@@ -227,6 +239,11 @@
       tmp.innerHTML = cardHTML(h, ffQ || '');
       container.appendChild(tmp.firstChild);
     });
+
+    // Reveal — remove the FOUC-prevention CSS now that AI results are in place
+    var hideStyle = document.getElementById('ff-ai-hide');
+    if (hideStyle) hideStyle.remove();
+    container.style.visibility = 'visible';
   }
 
   function pingConversion(){
@@ -297,7 +314,12 @@
     })
       .then(function(r){ return r.json(); })
       .then(function(data){ injectHits(data.hits || [], data.ff_q); })
-      .catch(function(err){ console.warn('[foamfactory-ai] search failed:', err); });
+      .catch(function(err){
+        console.warn('[foamfactory-ai] search failed:', err);
+        // On failure, reveal native results so the page isn't blank
+        var hideStyle = document.getElementById('ff-ai-hide');
+        if (hideStyle) hideStyle.remove();
+      });
   }
 
   if (document.readyState === 'loading') {
