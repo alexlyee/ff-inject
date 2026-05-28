@@ -166,8 +166,28 @@
     var priceHTML = startPrice
       ? '<span style="color:#c46a1e;font-weight:600;font-size:14px;margin-left:auto;">Starting at ' + startPrice + '</span>'
       : (price ? '<span style="color:#c46a1e;font-weight:600;font-size:14px;margin-left:auto;">' + price + '</span>' : '');
-    // Breadcrumb from hit.breadcrumb (plain text "Category > Subcategory > Name")
-    var breadcrumb = hit.breadcrumb ? '<div style="font-size:12px;color:#888;margin-top:4px;font-family:ui-monospace,monospace;">' + esc(hit.breadcrumb).substring(0, 120) + '</div>' : '';
+    // Breadcrumb / tags row — clickable, mirrors the dev preview:
+    //   blog (has tags)   → comma-separated clickable WP tag links
+    //   product/category  → "Top > Mid > Leaf", each segment links to /<code>.html
+    //   fallback          → plain breadcrumb text
+    var crumbStyle = 'font-size:12px;color:#888;margin-top:4px;font-family:ui-monospace,monospace;';
+    var crumbLink = 'color:#888;text-decoration:none;border-bottom:1px dotted #bbb;';
+    var breadcrumb = '';
+    if (hit.tags && hit.tags.length) {
+      breadcrumb = '<div style="' + crumbStyle + '">' + hit.tags.map(function(t){
+        return '<a href="' + esc(t.url || '#') + '" style="' + crumbLink + '">' + esc(t.name || '') + '</a>';
+      }).join(', ') + '</div>';
+    } else if (hit.breadcrumb_segments && hit.breadcrumb_segments.length) {
+      var paths = hit.breadcrumb_segments.map(function(path){
+        return path.map(function(seg){
+          // /<code>.html friendly URL — no ff_q (friendly URLs 404 with extra params)
+          return '<a href="' + location.origin + '/' + esc(seg.code) + '.html" style="' + crumbLink + '">' + esc(seg.name) + '</a>';
+        }).join(' &gt; ');
+      });
+      breadcrumb = '<div style="' + crumbStyle + '">' + paths.join(' &middot; ') + '</div>';
+    } else if (hit.breadcrumb) {
+      breadcrumb = '<div style="' + crumbStyle + '">' + esc(hit.breadcrumb).substring(0, 120) + '</div>';
+    }
     var imgHTML = imgSrc && imgSrc !== PLACEHOLDER_URI
       ? '<a href="' + href + '" style="flex:0 0 80px;"><img src="' + imgSrc + '" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:4px;" onerror="this.parentNode.style.display=\'none\'"></a>'
       : '';
