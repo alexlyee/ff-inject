@@ -104,15 +104,50 @@
     return PLACEHOLDER_URI;
   }
 
+  // Detect which theme we're on: Shadows (competitivefoam) vs 2016_Framework (foambymail)
+  var IS_FBM = !!document.querySelector('#js-product-list') || location.hostname.indexOf('foambymail') !== -1;
+
   function cardHTML(hit, hash){
     var href = buildHref(hit, hash);
     var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
+    var startPrice = (hit.starting_at_price && hit.starting_at_price > 0) ? ('$' + Number(hit.starting_at_price).toFixed(2)) : '';
     var type = hit.type || 'product';
     var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:10px;' +
       'font-size:11px;font-weight:600;letter-spacing:.02em;margin-bottom:6px;' +
       (BADGE_STYLES[type] || BADGE_STYLES.product);
     var badgeText = BADGE_LABEL[type] || type;
     var imgSrc = buildImageSrc(hit);
+    var snippet = (hit.snippet || '').substring(0, 100);
+    if (snippet && hit.snippet && hit.snippet.length > 100) snippet += '...';
+
+    if (IS_FBM) {
+      // foambymail.com 2016_Framework layout: 3-column row (image | name+desc | price)
+      var priceHTML = startPrice
+        ? '<p class="starting-price"><strong>Starting at ' + startPrice + '</strong></p>'
+        : (price ? '<p class="starting-price"><strong>' + price + '</strong></p>' : '');
+      return '' +
+        '<div class="column whole category-product" data-ai-rank="1" data-ai-type="' + esc(type) + '">' +
+          '<a href="' + href + '" title="' + esc(hit.name) + '" class="column one-third large-one-sixth medium-one-sixth small-one-sixth">' +
+            '<span class="flag flag--">' +
+              '<img src="' + imgSrc + '" alt="' + esc(hit.name) + '" loading="lazy" onerror="this.src=\'' + PLACEHOLDER_URI + '\';this.onerror=null">' +
+            '</span>' +
+          '</a>' +
+          '<div class="column two-thirds large-three-sixths medium-three-sixths small-three-sixths">' +
+            '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
+            '<h4><a href="' + href + '" class="blue">' + esc(hit.name) + '</a></h4>' +
+            (hit.code ? '<span class="product-code">Code: ' + esc(hit.code) + '</span>' : '') +
+            (snippet ? '<p>' + esc(snippet) + ' <a href="' + href + '"><span class="decoration">Read More</span></a></p>' : '') +
+          '</div>' +
+          '<div class="column whole large-two-sixths medium-two-sixths small-two-sixths align-center">' +
+            '<div class="float-none large-float-right medium-float-right small-float-right">' +
+              priceHTML +
+              '<a href="' + href + '"><span class="more-info orange decoration">More Info &raquo;</span></a>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    // Shadows framework (competitivefoam.com) — existing card layout
     return '' +
       '<div class="o-layout__item u-text-center x-product-list__item" data-ai-rank="1" data-ai-type="' + esc(type) + '">' +
         '<a class="u-block x-product-list__link" href="' + href + '" title="' + esc(hit.name) + '">' +
@@ -130,24 +165,49 @@
 
   function injectHits(hits, ffQ){
     if (!hits || !hits.length) return;
-    var container = document.querySelector('section.x-product-list:not(.t-featured-products)');
-    if (!container) {
-      var noResults = Array.from(document.querySelectorAll('h2, h3, p, div'))
-        .find(function(el){ return /no products matched/i.test(el.textContent || ''); });
-      container = document.createElement('section');
-      container.className = 'o-layout u-grids-2 u-grids-3--l x-product-list';
-      if (noResults && noResults.parentNode) {
-        noResults.parentNode.replaceChild(container, noResults);
+
+    var container;
+    if (IS_FBM) {
+      // foambymail.com: product list is #js-product-list
+      container = document.querySelector('#js-product-list');
+      if (!container) {
+        var noResults = document.querySelector('.italic') ||
+          Array.from(document.querySelectorAll('p')).find(function(el){ return /no products matched/i.test(el.textContent || ''); });
+        container = document.createElement('div');
+        container.id = 'js-product-list';
+        container.className = 'row';
+        if (noResults && noResults.closest('.row')) {
+          noResults.closest('.row').replaceWith(container);
+        } else {
+          var host = document.querySelector('#js-SRCH .row') || document.querySelector('#js-SRCH') || document.body;
+          host.appendChild(container);
+        }
       } else {
-        var host = document.querySelector('main') || document.querySelector('#js-SRCH') || document.body;
-        host.appendChild(container);
+        container.innerHTML = '';
       }
     } else {
-      container.innerHTML = '';
+      // Shadows (competitivefoam.com): product list is section.x-product-list
+      container = document.querySelector('section.x-product-list:not(.t-featured-products)');
+      if (!container) {
+        var noResults = Array.from(document.querySelectorAll('h2, h3, p, div'))
+          .find(function(el){ return /no products matched/i.test(el.textContent || ''); });
+        container = document.createElement('section');
+        container.className = 'o-layout u-grids-2 u-grids-3--l x-product-list';
+        if (noResults && noResults.parentNode) {
+          noResults.parentNode.replaceChild(container, noResults);
+        } else {
+          var host = document.querySelector('main') || document.querySelector('#js-SRCH') || document.body;
+          host.appendChild(container);
+        }
+      } else {
+        container.innerHTML = '';
+      }
     }
+
+    var bannerClass = IS_FBM ? 'column whole' : 'o-layout__item u-width-12 u-text-center u-font-small';
     var banner = document.createElement('div');
-    banner.className = 'o-layout__item u-width-12 u-text-center u-font-small';
-    banner.style.cssText = 'padding:10px;background:#f7f9ff;border-left:3px solid #2d6cdf;margin-bottom:12px;color:#2d6cdf;';
+    banner.className = bannerClass;
+    banner.style.cssText = 'padding:10px;background:#f7f9ff;border-left:3px solid #2d6cdf;margin-bottom:12px;color:#2d6cdf;' + (IS_FBM ? 'font-size:14px;' : '');
     banner.textContent = 'AI-ranked results for "' + getQuery() + '" (' + hits.length + ' matches)';
     container.appendChild(banner);
     hits.forEach(function(h){
