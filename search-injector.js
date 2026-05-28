@@ -104,8 +104,15 @@
     return PLACEHOLDER_URI;
   }
 
-  // Detect which theme we're on: Shadows (competitivefoam) vs 2016_Framework (foambymail)
-  var IS_FBM = !!document.querySelector('#js-product-list') || location.hostname.indexOf('foambymail') !== -1;
+  // Detect which theme we're on: Shadows (competitivefoam) vs 2016_Framework (foambymail).
+  // Lazy — evaluated on first use (after DOMContentLoaded) so the DOM query works.
+  var _is_fbm = null;
+  function IS_FBM() {
+    if (_is_fbm === null) {
+      _is_fbm = !!document.querySelector('#js-product-list') || location.hostname.indexOf('foambymail') !== -1;
+    }
+    return _is_fbm;
+  }
 
   function cardHTML(hit, hash){
     var href = buildHref(hit, hash);
@@ -120,7 +127,7 @@
     var snippet = (hit.snippet || '').substring(0, 100);
     if (snippet && hit.snippet && hit.snippet.length > 100) snippet += '...';
 
-    if (IS_FBM) {
+    if (IS_FBM()) {
       // foambymail.com 2016_Framework layout: 3-column row (image | name+desc | price)
       var priceHTML = startPrice
         ? '<p class="starting-price"><strong>Starting at ' + startPrice + '</strong></p>'
@@ -167,7 +174,7 @@
     if (!hits || !hits.length) return;
 
     var container;
-    if (IS_FBM) {
+    if (IS_FBM()) {
       // foambymail.com: product list is #js-product-list
       container = document.querySelector('#js-product-list');
       if (!container) {
@@ -204,10 +211,10 @@
       }
     }
 
-    var bannerClass = IS_FBM ? 'column whole' : 'o-layout__item u-width-12 u-text-center u-font-small';
+    var bannerClass = IS_FBM() ? 'column whole' : 'o-layout__item u-width-12 u-text-center u-font-small';
     var banner = document.createElement('div');
     banner.className = bannerClass;
-    banner.style.cssText = 'padding:10px;background:#f7f9ff;border-left:3px solid #2d6cdf;margin-bottom:12px;color:#2d6cdf;' + (IS_FBM ? 'font-size:14px;' : '');
+    banner.style.cssText = 'padding:10px;background:#f7f9ff;border-left:3px solid #2d6cdf;margin-bottom:12px;color:#2d6cdf;' + (IS_FBM() ? 'font-size:14px;' : '');
     banner.textContent = 'AI-ranked results for "' + getQuery() + '" (' + hits.length + ' matches)';
     container.appendChild(banner);
     hits.forEach(function(h){
