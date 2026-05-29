@@ -405,25 +405,6 @@
     var cardFn = isSiteSearch ? siteSearchCardHTML : cardHTML;
 
     if (isSiteSearch) {
-      // --- Page fixups for the site-search screen ---
-      var currentQuery = getQuery() || '';
-      // 1. Replace generic “Site Search” H1 with the actual query.
-      var pageHeadings = document.querySelectorAll('h1, h2, h3');
-      pageHeadings.forEach(function(el){
-        if (/^site search$/i.test(el.textContent.trim())) {
-          el.textContent = 'Results for “' + currentQuery + '”';
-        }
-      });
-      // 2. Fill the native search bar so the customer can refine without retyping.
-      document.querySelectorAll('#search-input, input[name=”Search”], input[name=”q”]')
-        .forEach(function(inp){ if (!inp.value) inp.value = currentQuery; });
-      // 3. Select “Search Site” radio (page always defaults to “Search Products”
-      //    even on Screen=SEARCH).
-      ['#search-site', '#mobile-search-site'].forEach(function(sel){
-        var radio = document.querySelector(sel);
-        if (radio) radio.checked = true;
-      });
-
       // Site search: a results-count line + client-side "load more". One
       // fetch returned all reasonably-relevant hits (backend score floor);
       // we reveal them in batches from memory — no extra round-trips.
@@ -632,6 +613,24 @@
     // floor → returns "all reasonably relevant", which is what we paginate.
     var isSiteSearch = onSiteSearchPage();
     if (isSiteSearch) limit = 48;
+
+    // --- Immediate site-search page fixups (before fetch, no lag) ---
+    if (isSiteSearch) {
+      // Replace generic "Site Search" heading with the query
+      document.querySelectorAll('h1, h2, h3').forEach(function(el){
+        if (/^site search$/i.test(el.textContent.trim()))
+          el.textContent = 'Results for "' + q + '"';
+      });
+      // Fill search bar so customers can refine without retyping
+      document.querySelectorAll('#search-input, input[name="Search"], input[name="q"]')
+        .forEach(function(inp){ if (!inp.value) inp.value = q; });
+      // Select "Search Site" radio (page defaults to "Search Products")
+      ['#search-site', '#mobile-search-site'].forEach(function(sel){
+        var radio = document.querySelector(sel);
+        if (radio) radio.checked = true;
+      });
+    }
+
     var payload = {
       query: q, limit: limit,
       surface: isSiteSearch ? 'site' : 'product',  // which search page (analytics)
