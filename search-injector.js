@@ -406,13 +406,38 @@
       var shown = 0;
       var brand = isCanadaSite() ? '#bf221c' : '#08559a';
 
+      // --- Type filter chips (Carlo-approved 5/29 meeting) ---
+      // All types start selected. Clicking a chip toggles it. Re-renders
+      // from memory (no new fetch). Count line + load-more update to match.
+      var typeSet = {};
+      filtered.forEach(function(h){ typeSet[h.type || 'product'] = true; });
+      var availableTypes = Object.keys(typeSet);  // e.g. ['product','category','page']
+      var activeTypes = {}; availableTypes.forEach(function(t){ activeTypes[t] = true; });
+      var CHIP_LABELS = {product:'Products', category:'Categories', page:'Blogs'};
+
+      var chipRow = document.createElement('div');
+      chipRow.style.cssText = 'display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap;';
+      var chipEls = {};
+      var chipOn = 'display:inline-block;padding:4px 12px;border-radius:14px;font-size:13px;' +
+        'font-weight:600;cursor:pointer;user-select:none;background:' + brand + ';color:#fff;';
+      var chipOff = 'display:inline-block;padding:4px 12px;border-radius:14px;font-size:13px;' +
+        'font-weight:600;cursor:pointer;user-select:none;background:#eee;color:#555;';
+      availableTypes.forEach(function(t){
+        var chip = document.createElement('span');
+        chip.textContent = CHIP_LABELS[t] || t;
+        chip.style.cssText = chipOn;
+        chip.addEventListener('click', function(){
+          activeTypes[t] = !activeTypes[t];
+          chip.style.cssText = activeTypes[t] ? chipOn : chipOff;
+          rerender();
+        });
+        chipRow.appendChild(chip);
+        chipEls[t] = chip;
+      });
+      container.appendChild(chipRow);
+
       var countLine = document.createElement('div');
       countLine.style.cssText = 'font-size:13px;color:#888;margin:0 0 14px;';
-      var secs = ((elapsedMs || 0) / 1000).toFixed(2);
-      // Plain count of the result set we have (not "About N" — that implies an
-      // estimate of the total; ours is the fetched/ranked set, capped at 48).
-      countLine.textContent = filtered.length + ' result' +
-        (filtered.length === 1 ? '' : 's') + ' (' + secs + ' seconds)';
       container.appendChild(countLine);
 
       var moreBtn = document.createElement('button');
@@ -420,32 +445,56 @@
       moreBtn.style.cssText = 'display:inline-block;margin:0 0 24px;padding:10px 24px;' +
         'background:' + brand + ';color:#fff;border:none;border-radius:3px;' +
         'font-size:14px;font-weight:600;cursor:pointer;';
+
+      // Active-filtered subset + render logic. rerender() is called on chip
+      // toggle; renderNext() appends the next PAGE from the active set.
+      var activeFiltered = [];
+      var secs = ((elapsedMs || 0) / 1000).toFixed(2);
+      function updateCount(){
+        countLine.textContent = activeFiltered.length + ' result' +
+          (activeFiltered.length === 1 ? '' : 's') + ' (' + secs + ' seconds)';
+      }
       function renderNext(){
-        filtered.slice(shown, shown + PAGE).forEach(function(h){
+        activeFiltered.slice(shown, shown + PAGE).forEach(function(h){
           var tmp = document.createElement('div');
           tmp.innerHTML = cardFn(h, ffQ || '');
           container.insertBefore(tmp.firstChild, btnWrap);
         });
-        shown = Math.min(shown + PAGE, filtered.length);
-        if (shown >= filtered.length) moreBtn.style.display = 'none';
-        else moreBtn.textContent = 'Load more results (' + (filtered.length - shown) + ' more)';
+        shown = Math.min(shown + PAGE, activeFiltered.length);
+        if (shown >= activeFiltered.length) moreBtn.style.display = 'none';
+        else { moreBtn.style.display = ''; moreBtn.textContent = 'Load more results (' + (activeFiltered.length - shown) + ' more)'; }
       }
-      // foambymail.com's .column cards are floated. Non-floated elements
-      // can't reliably margin away from floats (clearance absorbs margins).
-      // Fix: wrap the button in a floated full-width div so it participates
-      // in the same float flow as the cards. Margins between adjacent floats
-      // work normally — no clearance absorption.
+      function rerender(){
+        // Remove existing cards (everything between chipRow and btnWrap)
+        var cards = container.querySelectorAll('[data-ai-type]');
+        cards.forEach(function(c){ c.remove(); });
+        activeFiltered = filtered.filter(function(h){ return activeTypes[h.type || 'product']; });
+        shown = 0;
+        updateCount();
+        renderNext();
+      }
+      // foambymail.com's .column class uses float:left (2016-era grid).
+      // A non-floated button after floated cards has NO gap above it because:
+      //   - margin-top on a non-floated block is relative to the container
+      //     top (not the float bottom), so it sits behind/on the floats.
+      //   - clear:both moves it below floats, but clearance ABSORBS the
+      //     margin-top (CSS2.1 §8.3.1) — gap still 0.
+      //   - A clear:both spacer div with height:24px gets its height eaten
+      //     by clearance expansion — rendered height ~132px, gap still 0.
+      // Fix: wrap the button in a .column.whole div so it floats like the
+      // cards. Margins between adjacent floats work normally. The wrapper's
+      // padding-top:24px creates the visible gap above the button.
       var btnWrap = document.createElement('div');
       btnWrap.className = 'column whole';
       btnWrap.style.cssText = 'text-align:center;padding:24px 0 0;border:none;';
       btnWrap.appendChild(moreBtn);
       container.appendChild(btnWrap);
-      moreBtn.addEventListener('click', renderNext);
-      renderNext();  // first page
       moreBtn.addEventListener('click', function(){
-        console.info('[foamfactory-ai] showing ' + Math.min(shown, filtered.length) +
-          ' of ' + filtered.length + ' results');
+        renderNext();
+        console.info('[foamfactory-ai] showing ' + Math.min(shown, activeFiltered.length) +
+          ' of ' + activeFiltered.length + ' results');
       });
+      rerender();  // initial render with all types active
     } else {
       filtered.forEach(function(h){
         var tmp = document.createElement('div');
