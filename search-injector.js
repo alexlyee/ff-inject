@@ -415,20 +415,37 @@
       var activeTypes = {}; availableTypes.forEach(function(t){ activeTypes[t] = true; });
       var CHIP_LABELS = {product:'Products', category:'Categories', page:'Blogs'};
 
+      // Hide native Miva "Site Search" / "Search Results for:" headers —
+      // our count line + chips replace them.
+      var nativeHeaders = container.parentElement ?
+        container.parentElement.querySelectorAll('h2, h3, .search-results-header') : [];
+      nativeHeaders.forEach(function(el){
+        if (/site search|search results for/i.test(el.textContent)) el.style.display = 'none';
+      });
+
       var chipRow = document.createElement('div');
-      chipRow.style.cssText = 'display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap;';
+      chipRow.style.cssText = 'display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap;align-items:center;';
+      // Muted hint so customers know the chips are interactive
+      var hint = document.createElement('span');
+      hint.textContent = 'filter:';
+      hint.style.cssText = 'font-size:12px;color:#aaa;margin-right:2px;';
+      chipRow.appendChild(hint);
       var chipEls = {};
-      var chipOn = 'display:inline-block;padding:4px 12px;border-radius:2px;font-size:13px;' +
-        'font-weight:600;cursor:pointer;user-select:none;background:' + brand + ';color:#fff;';
-      var chipOff = 'display:inline-block;padding:4px 12px;border-radius:2px;font-size:13px;' +
-        'font-weight:600;cursor:pointer;user-select:none;background:#eee;color:#555;';
+      // Chips use the SAME colors as the per-type result badges (product=deep,
+      // category=medium, page=pale). Grey when deselected.
+      var badges = badgeStyles();
+      var chipBase = 'display:inline-block;padding:4px 12px;border-radius:2px;font-size:13px;' +
+        'font-weight:600;cursor:pointer;user-select:none;';
+      var chipOff = chipBase + 'background:#e4e4e4;color:#999;';
       availableTypes.forEach(function(t){
         var chip = document.createElement('span');
         chip.textContent = CHIP_LABELS[t] || t;
-        chip.style.cssText = chipOn;
+        chip.style.cssText = chipBase + (badges[t] || badges.product);
         chip.addEventListener('click', function(){
           activeTypes[t] = !activeTypes[t];
-          chip.style.cssText = activeTypes[t] ? chipOn : chipOff;
+          chip.style.cssText = activeTypes[t]
+            ? chipBase + (badges[t] || badges.product)
+            : chipOff;
           rerender();
         });
         chipRow.appendChild(chip);
