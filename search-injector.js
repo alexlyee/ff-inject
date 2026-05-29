@@ -417,20 +417,29 @@
 
       var moreBtn = document.createElement('button');
       moreBtn.type = 'button';
-      moreBtn.style.cssText = 'display:block;margin:24px auto 24px;padding:10px 24px;' +
+      moreBtn.style.cssText = 'display:inline-block;margin:0 0 24px;padding:10px 24px;' +
         'background:' + brand + ';color:#fff;border:none;border-radius:3px;' +
         'font-size:14px;font-weight:600;cursor:pointer;';
       function renderNext(){
         filtered.slice(shown, shown + PAGE).forEach(function(h){
           var tmp = document.createElement('div');
           tmp.innerHTML = cardFn(h, ffQ || '');
-          container.insertBefore(tmp.firstChild, moreBtn);
+          container.insertBefore(tmp.firstChild, btnWrap);
         });
         shown = Math.min(shown + PAGE, filtered.length);
         if (shown >= filtered.length) moreBtn.style.display = 'none';
         else moreBtn.textContent = 'Load more results (' + (filtered.length - shown) + ' more)';
       }
-      container.appendChild(moreBtn);
+      // foambymail.com's .column cards are floated. Non-floated elements
+      // can't reliably margin away from floats (clearance absorbs margins).
+      // Fix: wrap the button in a floated full-width div so it participates
+      // in the same float flow as the cards. Margins between adjacent floats
+      // work normally — no clearance absorption.
+      var btnWrap = document.createElement('div');
+      btnWrap.className = 'column whole';
+      btnWrap.style.cssText = 'text-align:center;padding:24px 0 0;border:none;';
+      btnWrap.appendChild(moreBtn);
+      container.appendChild(btnWrap);
       moreBtn.addEventListener('click', renderNext);
       renderNext();  // first page
       moreBtn.addEventListener('click', function(){
