@@ -7,6 +7,9 @@
    resource pages at a glance. */
 (function(){
   var API = 'https://debian-rise-subscribers-schools.trycloudflare.com/search';
+  // Injector build tag — shown in the console banner so a live/over-break page
+  // can be matched to a deploy. Date-based; bump the -N suffix on same-day redeploys.
+  var VERSION = '2026.05.29-1';
 
   // Anonymous per-browser session id, stored first-party in localStorage on
   // the storefront. No PII — just a random tag so the backend can count
@@ -36,7 +39,7 @@
       location.pathname.indexOf('/search.html') !== -1) {
     var hideStyle = document.createElement('style');
     hideStyle.id = 'ff-ai-hide';
-    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item { visibility: hidden; min-height: 200px; }';
+    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; }';
     document.head.appendChild(hideStyle);
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
@@ -184,9 +187,14 @@
     // Used on the "Search Site" page (Screen=SEARCH) to replace Google CSE.
     var href = buildHref(hit, hash);
     var type = hit.type || 'product';
+    var linkColor = isCanadaSite() ? '#bf221c' : '#2d6cdf';
     // Square badge (border-radius:2px) to match foambymail.com's rectangular UI.
-    var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:2px;' +
-      'font-size:11px;font-weight:600;letter-spacing:.02em;margin-right:8px;' +
+    // inline-flex + align-items:center + line-height:1 vertically centers the
+    // label (inline-block let short labels like "Product" ride high at cap-height).
+    // No margin-right — the row's gap:8px already spaces badge↔title; the old
+    // margin stacked with it for a 16px gap while everything else was 8px.
+    var badgeCss = 'display:inline-flex;align-items:center;padding:3px 8px;border-radius:2px;' +
+      'font-size:11px;font-weight:600;letter-spacing:.02em;line-height:1;' +
       (badgeStyles()[type] || badgeStyles().product);
     // Label page-type hits as "Blog" when they're blog posts (/blog/ URL),
     // since all page-type results in this catalog are WP blog articles.
@@ -231,7 +239,7 @@
         '<div style="flex:1;min-width:0;">' +
           '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">' +
             '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
-            '<a href="' + href + '" style="font-weight:600;color:#2d6cdf;text-decoration:none;font-size:15px;">' + esc(hit.name) + '</a>' +
+            '<a href="' + href + '" style="font-weight:600;color:' + linkColor + ';text-decoration:none;font-size:15px;">' + esc(hit.name) + '</a>' +
             (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
@@ -409,7 +417,7 @@
 
       var moreBtn = document.createElement('button');
       moreBtn.type = 'button';
-      moreBtn.style.cssText = 'display:block;margin:18px auto 4px;padding:10px 24px;' +
+      moreBtn.style.cssText = 'display:block;margin:24px auto 24px;padding:10px 24px;' +
         'background:' + brand + ';color:#fff;border:none;border-radius:3px;' +
         'font-size:14px;font-weight:600;cursor:pointer;';
       function renderNext(){
@@ -432,6 +440,13 @@
         container.appendChild(tmp.firstChild);
       });
     }
+
+    // Hide leftover Google CSE elements (search input box, branding bar) so only
+    // AI results remain. Targets CSE sub-elements, NOT .gsc-control-cse itself
+    // (which may be our container). On the demo proxies, CSE scripts are blocked
+    // entirely; this is the live-site defense for when CSE JS does load.
+    document.querySelectorAll('.gsc-search-box, .gsc-above-wrapper-area, .gsc-input-box')
+      .forEach(function(el){ el.style.display = 'none'; });
 
     // Reveal — remove the FOUC-prevention CSS now that AI results are in place
     var hideStyle = document.getElementById('ff-ai-hide');
@@ -540,12 +555,17 @@
         var tTotal = Math.round(performance.now() - t0);
         // Store debug info for console access via ffDebug()
         window._ffDebug = {
+          version: VERSION,
           query: q, limit: limit, types: payload.types || 'all',
           backendMs: data.elapsed_ms, fetchMs: tFetch, renderMs: tTotal - tFetch,
           totalMs: tTotal, hitsReturned: (data.hits || []).length,
           hitsRendered: document.querySelectorAll('[data-ai-type]').length,
           ff_q: data.ff_q, isFBM: IS_FBM()
         };
+        // Concise auto-summary so over-break console-watching shows each query
+        // (build · query · count · total ms) without anyone typing ffDebug().
+        console.info('[foamfactory-ai] ' + VERSION + ' · "' + q + '" · ' +
+          window._ffDebug.hitsRendered + ' results · ' + tTotal + 'ms');
       })
       .catch(function(err){
         console.warn('[foamfactory-ai] search failed:', err);
@@ -559,7 +579,7 @@
     if (!window._ffDebug) { console.log('[foamfactory-ai] no search has run yet'); return; }
     var d = window._ffDebug;
     console.log(
-      '[foamfactory-ai] query="' + d.query + '"  limit=' + d.limit + '  types=' + d.types +
+      '[foamfactory-ai] ' + (d.version || '?') + '  query="' + d.query + '"  limit=' + d.limit + '  types=' + d.types +
       '\n  backend: ' + d.backendMs + 'ms  fetch: ' + d.fetchMs + 'ms  render: ' + d.renderMs +
       'ms  total: ' + d.totalMs + 'ms' +
       '\n  hits returned: ' + d.hitsReturned + '  rendered: ' + d.hitsRendered +
@@ -568,6 +588,10 @@
     return d;
   };
 
+  // One-line load banner (console only — invisible to shoppers). Confirms the
+  // injector loaded on this page and which build, even before a search runs.
+  console.info('[foamfactory-ai] injector ' + VERSION + ' · ' +
+    (isCanadaSite() ? 'canada' : 'us') + ' · type ffDebug() for last-search timings');
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);
   } else {
