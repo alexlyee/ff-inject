@@ -30,7 +30,7 @@
   // flash of native content (FOUC) before AI results load. The CSS rule
   // is injected synchronously in <head>, so it takes effect before the
   // browser paints the body. injectHits() removes this after replacing.
-  // Safety: a 4-second timeout removes the hide CSS if AI results never
+  // Safety: a 1-second timeout removes the hide CSS if AI results never
   // arrive (backend down, JS error, param mismatch, etc.) so the page
   // is never permanently blank.
   if (location.search.indexOf('Screen=SRCH') !== -1 ||
@@ -44,7 +44,7 @@
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
       if (s) { s.remove(); console.warn('[foamfactory-ai] timeout — revealing native results'); }
-    }, 4000);
+    }, 1000);
   }
 
   // Inline SVG placeholder (data URI). Branded gray gradient tile — stands in
