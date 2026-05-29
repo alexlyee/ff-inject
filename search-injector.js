@@ -66,11 +66,25 @@
   var PLACEHOLDER_URI =
     'data:image/svg+xml;utf8,' + encodeURIComponent(PLACEHOLDER_SVG);
 
-  var BADGE_STYLES = {
-    product:  'background:#e7f0ff;color:#2d6cdf;',
-    category: 'background:#fff1e4;color:#c46a1e;',
-    page:     'background:#e9f6ea;color:#2e8c3b;',
+  // Type badges use shades of the site's own brand color rather than a
+  // green/orange/blue rainbow — reads more on-brand and cohesive. US site =
+  // shades of the brand blue (#095eab); Canada = shades of the brand red
+  // (#bf221c). Deep→medium→pale gradient (product→category→page); all
+  // contrast >=4.5:1 (white text on the two darker, deep text on the pale).
+  var BADGE_STYLES_BLUE = {
+    product:  'background:#08559a;color:#fff;',
+    category: 'background:#3379b9;color:#fff;',
+    page:     'background:#d3e2f0;color:#074d8c;',
   };
+  var BADGE_STYLES_RED = {
+    product:  'background:#ac1f19;color:#fff;',
+    category: 'background:#cb4a45;color:#fff;',
+    page:     'background:#f3d7d6;color:#9d1c17;',
+  };
+  function isCanadaSite(){
+    return location.hostname.indexOf('canada') !== -1 || !!window.FF_CANADA;
+  }
+  function badgeStyles(){ return isCanadaSite() ? BADGE_STYLES_RED : BADGE_STYLES_BLUE; }
   var BADGE_LABEL = { product: 'Product', category: 'Category', page: 'Page' };
 
   function onProductSearchPage(){
@@ -168,7 +182,7 @@
     // Square badge (border-radius:2px) to match foambymail.com's rectangular UI.
     var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:2px;' +
       'font-size:11px;font-weight:600;letter-spacing:.02em;margin-right:8px;' +
-      (BADGE_STYLES[type] || BADGE_STYLES.product);
+      (badgeStyles()[type] || badgeStyles().product);
     // Label page-type hits as "Blog" when they're blog posts (/blog/ URL),
     // since all page-type results in this catalog are WP blog articles.
     var badgeText = BADGE_LABEL[type] || type;
@@ -229,7 +243,7 @@
     var type = hit.type || 'product';
     var badgeCss = 'display:inline-block;padding:2px 8px;border-radius:10px;' +
       'font-size:11px;font-weight:600;letter-spacing:.02em;margin-bottom:6px;' +
-      (BADGE_STYLES[type] || BADGE_STYLES.product);
+      (badgeStyles()[type] || badgeStyles().product);
     var badgeText = BADGE_LABEL[type] || type;
     var imgSrc = buildImageSrc(hit);
     var snippet = (hit.snippet || '').substring(0, 100);
