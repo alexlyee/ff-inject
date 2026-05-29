@@ -418,9 +418,9 @@
       var chipRow = document.createElement('div');
       chipRow.style.cssText = 'display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap;';
       var chipEls = {};
-      var chipOn = 'display:inline-block;padding:4px 12px;border-radius:14px;font-size:13px;' +
+      var chipOn = 'display:inline-block;padding:4px 12px;border-radius:2px;font-size:13px;' +
         'font-weight:600;cursor:pointer;user-select:none;background:' + brand + ';color:#fff;';
-      var chipOff = 'display:inline-block;padding:4px 12px;border-radius:14px;font-size:13px;' +
+      var chipOff = 'display:inline-block;padding:4px 12px;border-radius:2px;font-size:13px;' +
         'font-weight:600;cursor:pointer;user-select:none;background:#eee;color:#555;';
       availableTypes.forEach(function(t){
         var chip = document.createElement('span');
