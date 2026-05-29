@@ -220,13 +220,19 @@
         return '<a href="' + esc(t.url || '#') + '" style="' + crumbLink + '">' + esc(t.name || '') + '</a>';
       }).join(', ') + '</div>';
     } else if (hit.breadcrumb_segments && hit.breadcrumb_segments.length) {
+      // Show only PARENT segments (drop the last one — it's the item itself,
+      // already shown as the title link). Skip entirely if that leaves nothing
+      // (top-level categories like "Commercial" have path length 1 → no parents).
       var paths = hit.breadcrumb_segments.map(function(path){
-        return path.map(function(seg){
-          // /<code>.html friendly URL — no ff_q (friendly URLs 404 with extra params)
+        var parents = path.slice(0, -1);  // drop last segment (the item)
+        if (!parents.length) return '';
+        return parents.map(function(seg){
           return '<a href="' + location.origin + '/' + esc(seg.code) + '.html" style="' + crumbLink + '">' + esc(seg.name) + '</a>';
         }).join(' &gt; ');
-      });
-      breadcrumb = '<div style="' + crumbStyle + '">' + paths.join(' &middot; ') + '</div>';
+      }).filter(function(p){ return p; });
+      if (paths.length) {
+        breadcrumb = '<div style="' + crumbStyle + '">' + paths.join(' &middot; ') + '</div>';
+      }
     } else if (hit.breadcrumb) {
       breadcrumb = '<div style="' + crumbStyle + '">' + esc(hit.breadcrumb).substring(0, 120) + '</div>';
     }
