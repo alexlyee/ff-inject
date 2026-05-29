@@ -121,6 +121,11 @@
   }
 
   function buildHref(hit, hash){
+    // On the Canada site, link to the Canada product/category URL when one
+    // exists (canada_url_path is an absolute canada.foambymail.com URL).
+    if (isCanadaSite() && hit.canada_url_path) {
+      return appendTrackingParam(hit.canada_url_path, hash);
+    }
     // location.origin lets the same jsDelivr-hosted script work on both
     // competitivefoam.com (dev) and foambymail.com (live) without rebuild.
     // Absolute url_path (e.g. blog links back to foambymail.com) are respected
@@ -349,10 +354,16 @@
     // Filter and render based on page type
     var filtered;
     if (isSiteSearch) {
-      // Site search: show all types, exclude Canada-only on US site
+      // Site search: all types, but scope products/categories to the current
+      // site. Blogs are shared so always shown. On Canada, show only items
+      // available there (have canada_url_path, or are Canada-only entries);
+      // on US, exclude Canada-only entries.
+      var ca = isCanadaSite();
       filtered = hits.filter(function(h){
-        if (h.url_path && h.url_path.indexOf('canada.foambymail.com') !== -1) return false;
-        return true;
+        if (h.type === 'page') return true;
+        var urlIsCanada = h.url_path && h.url_path.indexOf('canada.foambymail.com') !== -1;
+        if (ca) return !!h.canada_url_path || urlIsCanada;   // Canada-available only
+        return !urlIsCanada;                                  // US: drop Canada-only
       });
     } else if (IS_FBM()) {
       // Product search on FBM: products only, exclude Canada-only.
