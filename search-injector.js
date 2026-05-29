@@ -390,7 +390,9 @@
       var countLine = document.createElement('div');
       countLine.style.cssText = 'font-size:13px;color:#888;margin:0 0 14px;';
       var secs = ((elapsedMs || 0) / 1000).toFixed(2);
-      countLine.textContent = 'About ' + filtered.length + ' result' +
+      // Plain count of the result set we have (not "About N" — that implies an
+      // estimate of the total; ours is the fetched/ranked set, capped at 48).
+      countLine.textContent = filtered.length + ' result' +
         (filtered.length === 1 ? '' : 's') + ' (' + secs + ' seconds)';
       container.appendChild(countLine);
 
