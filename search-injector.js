@@ -291,7 +291,7 @@
       '</div>';
   }
 
-  function injectHits(hits, ffQ){
+  function injectHits(hits, ffQ, elapsedMs){
     if (!hits || !hits.length) return;
 
     var isSiteSearch = onSiteSearchPage();
@@ -378,11 +378,47 @@
     // Use the site search card layout (with badges + breadcrumbs) on the
     // Search Site page; use the native product card layout elsewhere.
     var cardFn = isSiteSearch ? siteSearchCardHTML : cardHTML;
-    filtered.forEach(function(h){
-      var tmp = document.createElement('div');
-      tmp.innerHTML = cardFn(h, ffQ || '');
-      container.appendChild(tmp.firstChild);
-    });
+
+    if (isSiteSearch) {
+      // Site search: a results-count line + client-side "load more". One
+      // fetch returned all reasonably-relevant hits (backend score floor);
+      // we reveal them in batches from memory — no extra round-trips.
+      var PAGE = 12;
+      var shown = 0;
+      var brand = isCanadaSite() ? '#bf221c' : '#08559a';
+
+      var countLine = document.createElement('div');
+      countLine.style.cssText = 'font-size:13px;color:#888;margin:0 0 14px;';
+      var secs = ((elapsedMs || 0) / 1000).toFixed(2);
+      countLine.textContent = 'About ' + filtered.length + ' result' +
+        (filtered.length === 1 ? '' : 's') + ' (' + secs + ' seconds)';
+      container.appendChild(countLine);
+
+      var moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.style.cssText = 'display:block;margin:18px auto 4px;padding:10px 24px;' +
+        'background:' + brand + ';color:#fff;border:none;border-radius:3px;' +
+        'font-size:14px;font-weight:600;cursor:pointer;';
+      function renderNext(){
+        filtered.slice(shown, shown + PAGE).forEach(function(h){
+          var tmp = document.createElement('div');
+          tmp.innerHTML = cardFn(h, ffQ || '');
+          container.insertBefore(tmp.firstChild, moreBtn);
+        });
+        shown = Math.min(shown + PAGE, filtered.length);
+        if (shown >= filtered.length) moreBtn.style.display = 'none';
+        else moreBtn.textContent = 'Load more results (' + (filtered.length - shown) + ' more)';
+      }
+      container.appendChild(moreBtn);
+      moreBtn.addEventListener('click', renderNext);
+      renderNext();  // first page
+    } else {
+      filtered.forEach(function(h){
+        var tmp = document.createElement('div');
+        tmp.innerHTML = cardFn(h, ffQ || '');
+        container.appendChild(tmp.firstChild);
+      });
+    }
 
     // Reveal — remove the FOUC-prevention CSS now that AI results are in place
     var hideStyle = document.getElementById('ff-ai-hide');
@@ -447,7 +483,7 @@
     if (prefetched && prefetched.getAttribute('data-response')) {
       try {
         var data = JSON.parse(prefetched.getAttribute('data-response'));
-        injectHits(data.hits || [], data.ff_q);
+        injectHits(data.hits || [], data.ff_q, data.elapsed_ms);
         return;
       } catch(e) { /* fall through to fetch */ }
     }
@@ -458,8 +494,12 @@
     var ppp = parseInt(urlParams.get('ProductsPerPage'), 10);
     var limit = (ppp > 0 && ppp < 9999) ? ppp : (ppp >= 9999 ? 100 : 12);
 
-    // Product search: products only. Site search: all types.
+    // Product search: products only, paged by Miva's VIEW selector. Site
+    // search: all types, one generous fetch (48) that the load-more button
+    // reveals in batches client-side. limit>=30 triggers the backend score
+    // floor → returns "all reasonably relevant", which is what we paginate.
     var isSiteSearch = onSiteSearchPage();
+    if (isSiteSearch) limit = 48;
     var payload = {
       query: q, limit: limit,
       surface: isSiteSearch ? 'site' : 'product',  // which search page (analytics)
@@ -483,7 +523,7 @@
           if (hs) hs.remove();
           return;
         }
-        injectHits(data.hits || [], data.ff_q);
+        injectHits(data.hits || [], data.ff_q, data.elapsed_ms);
         var tTotal = Math.round(performance.now() - t0);
         // Store debug info for console access via ffDebug()
         window._ffDebug = {
