@@ -227,7 +227,7 @@
           '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">' +
             '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
             '<a href="' + href + '" style="font-weight:600;color:#2d6cdf;text-decoration:none;font-size:15px;">' + esc(hit.name) + '</a>' +
-            (hit.code ? '<span style="font-family:monospace;font-size:13px;color:#888;">' + esc(hit.code) + '</span>' : '') +
+            (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
           (snippet ? '<div style="color:#555;font-size:13px;margin-top:4px;line-height:1.4;">' + esc(snippet) + '</div>' : '') +
