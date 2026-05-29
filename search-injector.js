@@ -433,6 +433,10 @@
       container.appendChild(moreBtn);
       moreBtn.addEventListener('click', renderNext);
       renderNext();  // first page
+      moreBtn.addEventListener('click', function(){
+        console.info('[foamfactory-ai] showing ' + Math.min(shown, filtered.length) +
+          ' of ' + filtered.length + ' results');
+      });
     } else {
       filtered.forEach(function(h){
         var tmp = document.createElement('div');
@@ -592,6 +596,7 @@
   // injector loaded on this page and which build, even before a search runs.
   console.info('[foamfactory-ai] injector ' + VERSION + ' · ' +
     (isCanadaSite() ? 'canada' : 'us') + ' · type ffDebug() for last-search timings');
+  console.info('[foamfactory-ai] hand-built in macomb county 🧱');
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);
   } else {
