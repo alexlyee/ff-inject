@@ -82,7 +82,7 @@
   var BADGE_STYLES_RED = {
     product:  'background:#ac1f19;color:#fff;',
     category: 'background:#cb4a45;color:#fff;',
-    page:     'background:#f3d7d6;color:#9d1c17;',
+    page:     'background:#d3e2f0;color:#074d8c;',  // blue — blogs are shared content, not Canada-specific
   };
   function isCanadaSite(){
     return location.hostname.indexOf('canada') !== -1 || !!window.FF_CANADA;
