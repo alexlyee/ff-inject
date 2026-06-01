@@ -187,7 +187,8 @@
     // Used on the "Search Site" page (Screen=SEARCH) to replace Google CSE.
     var href = buildHref(hit, hash);
     var type = hit.type || 'product';
-    var linkColor = isCanadaSite() ? '#bf221c' : '#2d6cdf';
+    // Red title links on Canada for products/categories; blue for blogs (shared content)
+    var linkColor = (isCanadaSite() && type !== 'page') ? '#bf221c' : '#2d6cdf';
     // Square badge (border-radius:2px) to match foambymail.com's rectangular UI.
     // inline-flex + align-items:center + line-height:1 vertically centers the
     // label (inline-block let short labels like "Product" ride high at cap-height).
