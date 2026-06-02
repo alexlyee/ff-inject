@@ -261,7 +261,7 @@
             priceHTML +
           '</div>' +
           (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + esc(snippet) +
-            ' <a href="' + href + '" style="color:#656d78;text-decoration:none;border-bottom:1px solid #ccc;">Read More</a></div>' : '') +
+            '</div>' : '') +
           breadcrumb +
         '</div>' +
       '</div>';
