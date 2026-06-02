@@ -217,8 +217,8 @@
     var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
     var startPrice = (hit.starting_at_price && hit.starting_at_price > 0) ? ('$' + Number(hit.starting_at_price).toFixed(2)) : '';
     var priceHTML = startPrice
-      ? '<span style="color:#c46a1e;font-weight:600;font-size:14px;margin-left:auto;">Starting at ' + startPrice + '</span>'
-      : (price ? '<span style="color:#c46a1e;font-weight:600;font-size:14px;margin-left:auto;">' + price + '</span>' : '');
+      ? '<span style="color:#c46a1e;font-weight:700;font-size:16px;margin-left:auto;">Starting at ' + startPrice + '</span>'
+      : (price ? '<span style="color:#c46a1e;font-weight:700;font-size:16px;margin-left:auto;">' + price + '</span>' : '');
     // Breadcrumb / tags row — clickable, mirrors the dev preview:
     //   blog (has tags)   → comma-separated clickable WP tag links
     //   product/category  → "Top > Mid > Leaf", each segment links to /<code>.html
@@ -256,11 +256,11 @@
         '<div style="flex:1;min-width:0;">' +
           '<div style="display:flex;align-items:baseline;column-gap:8px;row-gap:2px;flex-wrap:wrap;">' +
             '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
-            '<a href="' + href + '" style="font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:15px;">' + esc(hit.name) + '</a>' +
+            '<a href="' + href + '" style="font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:18px;line-height:18px;">' + esc(hit.name) + '</a>' +
             (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
-          (snippet ? '<div style="color:#555;font-size:13px;margin-top:4px;line-height:1.4;">' + esc(snippet) + '</div>' : '') +
+          (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + esc(snippet) + '</div>' : '') +
           breadcrumb +
         '</div>' +
       '</div>';
