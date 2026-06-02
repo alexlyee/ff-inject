@@ -248,7 +248,7 @@
       breadcrumb = '<div style="' + crumbStyle + '">' + esc(hit.breadcrumb).substring(0, 120) + '</div>';
     }
     var imgHTML = imgSrc && imgSrc !== PLACEHOLDER_URI
-      ? '<a href="' + href + '" style="flex:0 0 80px;"><img src="' + imgSrc + '" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:4px;" onerror="this.parentNode.style.display=\'none\'"></a>'
+      ? '<a href="' + href + '" style="flex:0 0 80px;"><img src="' + imgSrc + '" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:0;" onerror="this.parentNode.style.display=\'none\'"></a>'
       : '';
     return '' +
       '<div class="column whole" data-ai-rank="1" data-ai-type="' + esc(type) + '" style="padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;align-items:flex-start;">' +
@@ -261,7 +261,7 @@
             priceHTML +
           '</div>' +
           (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + esc(snippet) +
-            ' <a href="' + href + '" style="color:#e9951e;text-decoration:none;font-weight:400;">Read More</a></div>' : '') +
+            ' <a href="' + href + '" style="color:#656d78;text-decoration:none;border-bottom:1px solid #ccc;">Read More</a></div>' : '') +
           breadcrumb +
         '</div>' +
       '</div>';
