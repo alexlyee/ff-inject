@@ -256,7 +256,7 @@
         '<div style="flex:1;min-width:0;">' +
           '<div style="display:flex;align-items:baseline;column-gap:8px;row-gap:2px;flex-wrap:wrap;">' +
             '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
-            '<a href="' + href + '" style="font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:18px;line-height:18px;">' + esc(hit.name) + '</a>' +
+            '<a href="' + href + '" style="font-family:montserratbold,sans-serif;font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:18px;line-height:18px;">' + esc(hit.name) + '</a>' +
             (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
