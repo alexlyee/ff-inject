@@ -39,7 +39,7 @@
       location.pathname.indexOf('/search.html') !== -1) {
     var hideStyle = document.createElement('style');
     hideStyle.id = 'ff-ai-hide';
-    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; }';
+    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; } [data-ai-type] { transition: background 0.15s; cursor: pointer; } [data-ai-type]:hover { background: #f5f7fa; }';
     document.head.appendChild(hideStyle);
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
@@ -260,7 +260,8 @@
             (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
-          (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + esc(snippet) + '</div>' : '') +
+          (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + esc(snippet) +
+            ' <a href="' + href + '" style="color:#e9951e;text-decoration:none;font-weight:400;">Read More</a></div>' : '') +
           breadcrumb +
         '</div>' +
       '</div>';
