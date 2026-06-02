@@ -108,7 +108,15 @@
   function getQuery(){
     var p = new URLSearchParams(location.search);
     // Product search: 'Search' or 'search'. Site search: 'q'.
-    return (p.get('Search') || p.get('search') || p.get('q') || '').trim();
+    var q = (p.get('Search') || p.get('search') || p.get('q') || '').trim();
+    // foambymail.com's product search form submits via POST — the query is in
+    // the POST body, not the URL. Miva pre-fills the search input with the
+    // current query, so fall back to reading it from the DOM.
+    if (!q) {
+      var inp = document.querySelector('input[name="Search"], input[name="search"], input[name="q"]');
+      if (inp) q = (inp.value || '').trim();
+    }
+    return q;
   }
 
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
