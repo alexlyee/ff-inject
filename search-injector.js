@@ -111,7 +111,9 @@
     var q = (p.get('Search') || p.get('search') || p.get('q') || '').trim();
     // foambymail.com's product search form submits via POST — the query is in
     // the POST body, not the URL. Miva pre-fills the search input with the
-    // current query, so fall back to reading it from the DOM.
+    // current query, so fall back to reading it from the DOM. This also
+    // handles page refreshes after a POST search (browser re-submits the
+    // POST, Miva re-fills the input, we read it here).
     if (!q) {
       var inp = document.querySelector('input[name="Search"], input[name="search"], input[name="q"]');
       if (inp) q = (inp.value || '').trim();
@@ -252,9 +254,9 @@
       '<div class="column whole" data-ai-rank="1" data-ai-type="' + esc(type) + '" style="padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;align-items:flex-start;">' +
         imgHTML +
         '<div style="flex:1;min-width:0;">' +
-          '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">' +
+          '<div style="display:flex;align-items:baseline;column-gap:8px;row-gap:2px;flex-wrap:wrap;">' +
             '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
-            '<a href="' + href + '" style="font-weight:600;color:' + linkColor + ';text-decoration:none;font-size:15px;">' + esc(hit.name) + '</a>' +
+            '<a href="' + href + '" style="font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:15px;">' + esc(hit.name) + '</a>' +
             (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
@@ -290,7 +292,7 @@
             '</span>' +
           '</a>' +
           '<div class="column two-thirds large-three-sixths medium-three-sixths small-three-sixths">' +
-            '<h4><a href="' + href + '" class="blue">' + esc(hit.name) + '</a></h4>' +
+            '<h4><a href="' + href + '" class="blue"' + (isCanadaSite() ? ' style="color:#bf221c;"' : '') + '>' + esc(hit.name) + '</a></h4>' +
             (hit.code ? '<span class="product-code">Code: ' + esc(hit.code) + '</span>' : '') +
             (snippet ? '<p>' + esc(snippet) + ' <a href="' + href + '"><span class="decoration">Read More</span></a></p>' : '') +
           '</div>' +
