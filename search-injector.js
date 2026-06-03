@@ -724,7 +724,38 @@
         var loadingEl = document.createElement('div');
         loadingEl.id = 'ff-loading';
         loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;text-align:center;';
-        loadingEl.textContent = 'Connecting...';
+        // Random "searching" messages — shown once you're in front of the queue.
+        // Rotates on each search for variety. Placeholders: {query}, {count}.
+        var SEARCHING_MSGS = [
+          'Matching products to what you meant...',
+          'Squishing through our catalog...',
+          'Finding foam for your specific problem...',
+          'Compressing {count} products for you...',
+          'Foam isn\'t one-size-fits-all. Finding yours now.',
+          'Running \'{query}\' through our foam brain...',
+          'Comparing your words against {count} products...',
+          'Memory foam never forgets \'{query}\'...',
+          'Digging through 20+ years of foam knowledge...',
+          'Hang tight — great foam takes a second to find.',
+          'Matching your intent against the catalog...',
+          'Connecting your words to real products...',
+          'Translating your question into foam...',
+        ];
+        // Queue-specific messages — shown during countdown ({depth} replaced live)
+        var QUEUE_MSGS = [
+          'Just {depth} foam friends ahead of you...',
+          '{depth} searches ahead. We\'re on it.',
+          'Almost there! {depth} searches to go.',
+          '{depth} other shoppers finding their foam first.',
+          'Popular right now — {depth} people ahead.',
+          'Hold tight — {depth} customers finishing up.',
+        ];
+        function pickMsg(arr, q, count, depth) {
+          var msg = arr[Math.floor(Math.random() * arr.length)];
+          return msg.replace(/\{query\}/g, q).replace(/\{count\}/g, count || '600').replace(/\{depth\}/g, depth || '');
+        }
+
+        loadingEl.textContent = 'Connecting to FF HQ...';
         loadingAnchor.parentNode.insertBefore(loadingEl, loadingAnchor);
         console.info('[foamfactory-ai] connecting to search backend...');
         window._ffQueueStart = performance.now();
@@ -736,26 +767,27 @@
           window._ffQueueDepth = depth;
           window._ffQueueMsPerReq = msPerReq;
           if (depth <= 0) {
-            loadingEl.textContent = 'You\'re next — searching now...';
+            loadingEl.textContent = pickMsg(SEARCHING_MSGS, q, '600', '');
             console.info('[foamfactory-ai] queue empty — searching now (' + msPerReq + 'ms avg)');
           } else {
             var remaining = depth;
-            loadingEl.textContent = remaining + ' ahead of you...';
+            loadingEl.textContent = pickMsg(QUEUE_MSGS, q, '600', remaining);
             console.info('[foamfactory-ai] queue depth: ' + depth + ' (' + msPerReq + 'ms/req, ~' + Math.round(depth * msPerReq / 1000 * 10) / 10 + 's est)');
             window._ffLoadingInterval = setInterval(function(){
               remaining--;
               if (remaining <= 0) {
-                loadingEl.textContent = 'You\'re next — searching now...';
+                loadingEl.textContent = pickMsg(SEARCHING_MSGS, q, '600', '');
                 console.info('[foamfactory-ai] queue cleared — searching now');
                 if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
               } else {
-                loadingEl.textContent = remaining + ' ahead of you...';
+                loadingEl.textContent = pickMsg(QUEUE_MSGS, q, '600', remaining);
               }
             }, msPerReq);
           }
         }).catch(function(){
-          // Queue endpoint unreachable — stay on "Connecting..." until results arrive
-          console.info('[foamfactory-ai] queue endpoint unreachable — waiting for results');
+          // Queue endpoint unreachable — show a searching message anyway
+          loadingEl.textContent = pickMsg(SEARCHING_MSGS, q, '600', '');
+          console.info('[foamfactory-ai] queue endpoint unreachable — searching anyway');
         });
       }
     }
