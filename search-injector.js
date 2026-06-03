@@ -869,10 +869,18 @@
         // Kill switch: backend says search is disabled → render nothing,
         // reveal native Miva results. Site-wide off switch, no redeploy.
         if (data.disabled || window._ffTimedOut) {
-          var hs = document.getElementById('ff-ai-hide');
-          if (hs) hs.remove();
+          // Undo all changes, restore native page state
           if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
           var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
+          document.querySelectorAll('h1, h2, h3').forEach(function(el){
+            if (el.style.display === 'none') el.style.display = '';
+            if (/^Results for /i.test(el.textContent)) el.textContent = 'Site Search';
+          });
+          var hs = document.getElementById('ff-ai-hide');
+          if (hs) hs.remove();
+          document.querySelectorAll('#content-item, #js-product-list, .gsc-control-cse')
+            .forEach(function(c){ c.style.visibility = 'visible'; c.style.minHeight = ''; });
+          console.warn('[foamfactory-ai] disabled/timed out — falling back to native search');
           return;
         }
         injectHits(data.hits || [], data.ff_q, data.elapsed_ms);
@@ -893,10 +901,31 @@
       })
       .catch(function(err){
         console.warn('[foamfactory-ai] search failed:', err);
-        var hideStyle = document.getElementById('ff-ai-hide');
-        if (hideStyle) hideStyle.remove();
+        // CRITICAL: undo ALL changes and restore the page to native state.
+        // The user must NEVER see a blank page. Native results (Miva/Google CSE)
+        // must show when our backend is unreachable, overloaded, or erroring.
+
+        // 1. Remove loading indicator + stop countdown
         if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
         var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
+
+        // 2. Undo heading changes (restore original text)
+        document.querySelectorAll('h1, h2, h3').forEach(function(el){
+          // Un-hide any h3 we hid
+          if (el.style.display === 'none') el.style.display = '';
+          // Restore "Site Search" if we changed it to "Results for..."
+          if (/^Results for /i.test(el.textContent)) el.textContent = 'Site Search';
+        });
+
+        // 3. Remove the FOUC hide CSS — reveals ALL native content
+        var hideStyle = document.getElementById('ff-ai-hide');
+        if (hideStyle) hideStyle.remove();
+
+        // 4. Make sure native containers are visible
+        var nativeContainers = document.querySelectorAll('#content-item, #js-product-list, .gsc-control-cse');
+        nativeContainers.forEach(function(c){ c.style.visibility = 'visible'; c.style.minHeight = ''; });
+
+        console.warn('[foamfactory-ai] falling back to native search — all changes reverted');
       });
   }
 
