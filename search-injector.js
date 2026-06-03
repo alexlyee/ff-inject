@@ -687,9 +687,12 @@
       });
     }
 
-    // Live loading indicator: shows elapsed time while fetch is in flight.
-    // Replaces the old skeleton shimmer (which was invisible on fast connections
-    // anyway). Updates every 100ms; cleared by injectHits or timeout.
+    // Queue-aware loading indicator. Hits the lightweight /queue endpoint first
+    // to get the current queue depth. If people are ahead, shows a countdown
+    // ("3 ahead of you... 2... 1... you're next!") ticking at the backend's
+    // measured ms_per_request rate. If queue is empty, shows "Searching...".
+    // The /queue call is fire-and-forget — it updates the display if it arrives
+    // before /search, otherwise the default "Searching..." shows until results.
     if (isSiteSearch) {
       var loadingContainer = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
       if (loadingContainer) {
@@ -701,11 +704,27 @@
         loadingContainer.appendChild(loadingEl);
         loadingContainer.style.visibility = 'visible';
         loadingContainer.style.minHeight = '0';
-        var loadStart = performance.now();
-        window._ffLoadingInterval = setInterval(function(){
-          var sec = ((performance.now() - loadStart) / 1000).toFixed(1);
-          loadingEl.textContent = 'Reaching out to HQ for results... ' + sec + 's';
-        }, 100);
+        // Fire-and-forget: ask the backend how many are in the queue
+        fetch(API.replace('/search', '/queue')).then(function(r){ return r.json(); }).then(function(qData){
+          if (!qData || !document.getElementById('ff-loading')) return;
+          var depth = qData.depth || 0;
+          var msPerReq = qData.ms_per_request || 80;
+          if (depth <= 0) {
+            loadingEl.textContent = 'You\'re next — searching now...';
+          } else {
+            var remaining = depth;
+            loadingEl.textContent = remaining + ' ahead of you...';
+            window._ffLoadingInterval = setInterval(function(){
+              remaining--;
+              if (remaining <= 0) {
+                loadingEl.textContent = 'You\'re next — loading results...';
+                if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
+              } else {
+                loadingEl.textContent = remaining + ' ahead of you...';
+              }
+            }, msPerReq);
+          }
+        }).catch(function(){}); // queue endpoint failure is silent — default text stays
       }
     }
 
