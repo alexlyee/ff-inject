@@ -583,7 +583,10 @@
     document.querySelectorAll('.gsc-search-box, .gsc-above-wrapper-area, .gsc-input-box')
       .forEach(function(el){ el.style.display = 'none'; });
 
-    // Reveal — remove the FOUC-prevention CSS now that AI results are in place
+    // Clean up loading indicator + reveal results
+    if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
+    var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
+    // Remove the FOUC-prevention CSS now that AI results are in place
     var hideStyle = document.getElementById('ff-ai-hide');
     if (hideStyle) hideStyle.remove();
     container.style.visibility = 'visible';
