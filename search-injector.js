@@ -482,11 +482,11 @@
         chipRow.appendChild(chip);
         chipEls[t] = chip;
       });
-      container.appendChild(chipRow);
-
+      // Count line goes ABOVE chips so it aligns with the loading text position
       var countLine = document.createElement('div');
-      countLine.style.cssText = 'font-size:13px;color:#aaa;margin:0 0 14px;';
+      countLine.style.cssText = 'font-size:13px;color:#aaa;margin:0 0 8px;';
       container.appendChild(countLine);
+      container.appendChild(chipRow);
 
       var moreBtn = document.createElement('button');
       moreBtn.type = 'button';
@@ -725,12 +725,16 @@
       // the native content intact underneath. If we cleared the container for
       // the loading text, a timeout would leave a blank page (native gone +
       // loading gone = nothing).
+      // Loading text goes INSIDE the container at the same position where the
+      // count line will appear. visibility:visible overrides the FOUC hide on the
+      // parent (CSS: child visibility:visible beats parent visibility:hidden).
       var loadingAnchor = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
-      if (loadingAnchor && loadingAnchor.parentNode) {
+      if (loadingAnchor) {
+        loadingAnchor.innerHTML = '';
         var loadingEl = document.createElement('div');
         loadingEl.id = 'ff-loading';
-        // Match the count line position + styling: same font, margin, and muted color
-        loadingEl.style.cssText = 'font-size:13px;color:#aaa;margin:0 0 14px;';
+        loadingEl.style.cssText = 'font-size:13px;color:#aaa;margin:0 0 8px;visibility:visible;';
+        loadingAnchor.appendChild(loadingEl);
         // Helper: append a new line (stacked, left-aligned). Previous lines stay.
         function addLine(text) {
           var line = document.createElement('div');
