@@ -599,12 +599,13 @@
         var actualMs = Math.round(performance.now() - window._ffQueueStart);
         var estMs = (window._ffQueueDepth || 0) * (window._ffQueueMsPerReq || 80);
         var deviation = actualMs - estMs;
-        // How many ticks were left in the countdown when results arrived?
-        var ticksElapsed = Math.floor(actualMs / (window._ffQueueMsPerReq || 80));
-        var remainingEst = Math.max(0, (window._ffQueueDepth || 0) - ticksElapsed);
+        // Exact countdown position when results arrived. Negative = countdown
+        // finished N positions ago (user saw "searching" message for that many
+        // ticks worth of time). Positive = results arrived while still counting.
+        var countdownPos = (window._ffCountdownRemaining !== undefined) ? window._ffCountdownRemaining : 0;
         console.info('[foamfactory-ai] queue estimate deviation: predicted ' + estMs + 'ms, actual ' +
           actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms). ' +
-          'Countdown was at ~' + remainingEst + ' of ' + (window._ffQueueDepth || 0) + ' when results arrived.');
+          'Countdown at ' + countdownPos + ' of ' + (window._ffQueueDepth || 0) + ' when results arrived.');
       }
       ffL.remove();
     }
@@ -794,25 +795,28 @@
             console.info('[foamfactory-ai] queue empty — searching now (' + msPerReq + 'ms avg)');
           } else {
             var remaining = depth;
-            loadingEl.textContent = pickMsg(QUEUE_MSGS, q, '600', remaining);
-            // Calculate tick rate from REMAINING estimated time, not raw ms_per_request.
-            // The page load + /queue round-trip already ate some of the wait. If we
-            // tick at raw ms_per_request, the countdown is still at ~10 when results
-            // arrive and "searching" is never seen. Adjusting the tick rate so the
-            // countdown reaches 0 roughly when results are expected.
+            // Pick ONE message for the whole countdown — don't randomize every tick
+            var queueMsg = pickMsg(QUEUE_MSGS, q, '600', '{depth}'); // {depth} stays as placeholder for live update
+            var searchingMsg = pickMsg(SEARCHING_MSGS, q, '600', '');
+            loadingEl.textContent = queueMsg.replace(/\{depth\}/g, remaining);
+            window._ffCountdownRemaining = remaining;
+            // Adaptive tick rate: accounts for page-load overhead so countdown
+            // reaches 0 roughly when results are expected.
             var elapsedSoFar = performance.now() - window._ffQueueStart;
             var totalEstMs = depth * msPerReq;
-            var remainingMs = Math.max(totalEstMs - elapsedSoFar, depth * 10); // floor: 10ms/tick min
+            var remainingMs = Math.max(totalEstMs - elapsedSoFar, depth * 10);
             var tickRate = Math.round(remainingMs / depth);
             console.info('[foamfactory-ai] queue depth: ' + depth + ' (' + msPerReq + 'ms/req, ~' + Math.round(totalEstMs / 1000 * 10) / 10 + 's est, ' + Math.round(elapsedSoFar) + 'ms already elapsed, ticking at ' + tickRate + 'ms)');
             window._ffLoadingInterval = setInterval(function(){
               remaining--;
+              window._ffCountdownRemaining = remaining;
               if (remaining <= 0) {
-                loadingEl.textContent = pickMsg(SEARCHING_MSGS, q, '600', '');
+                loadingEl.textContent = searchingMsg;
                 console.info('[foamfactory-ai] queue cleared — searching now');
                 if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
               } else {
-                loadingEl.textContent = pickMsg(QUEUE_MSGS, q, '600', remaining);
+                // Same message template, just update the number
+                loadingEl.textContent = queueMsg.replace(/\{depth\}/g, remaining);
               }
             }, tickRate);
           }
