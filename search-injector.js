@@ -485,7 +485,7 @@
       container.appendChild(chipRow);
 
       var countLine = document.createElement('div');
-      countLine.style.cssText = 'font-size:13px;color:#888;margin:0 0 14px;';
+      countLine.style.cssText = 'font-size:13px;color:#aaa;margin:0 0 14px;';
       container.appendChild(countLine);
 
       var moreBtn = document.createElement('button');
@@ -729,7 +729,8 @@
       if (loadingAnchor && loadingAnchor.parentNode) {
         var loadingEl = document.createElement('div');
         loadingEl.id = 'ff-loading';
-        loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;';
+        // Match the count line position + styling: same font, margin, and muted color
+        loadingEl.style.cssText = 'font-size:13px;color:#aaa;margin:0 0 14px;';
         // Helper: append a new line (stacked, left-aligned). Previous lines stay.
         function addLine(text) {
           var line = document.createElement('div');
