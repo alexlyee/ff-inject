@@ -655,10 +655,13 @@
 
     // --- Immediate site-search page fixups (before fetch, no lag) ---
     if (isSiteSearch) {
-      // Replace generic "Site Search" heading with the query
+      // Replace "Site Search" heading with query; hide "Search Results for: X" (redundant)
       document.querySelectorAll('h1, h2, h3').forEach(function(el){
-        if (/^site search$/i.test(el.textContent.trim()))
+        var txt = el.textContent.trim();
+        if (/^site search$/i.test(txt))
           el.textContent = 'Results for "' + q + '"';
+        else if (/^search results for/i.test(txt))
+          el.style.display = 'none';
       });
       // Fill search bar so customers can refine without retyping
       document.querySelectorAll('#search-input, input[name="Search"], input[name="q"]')
