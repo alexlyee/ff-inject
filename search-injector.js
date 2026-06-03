@@ -599,8 +599,12 @@
         var actualMs = Math.round(performance.now() - window._ffQueueStart);
         var estMs = (window._ffQueueDepth || 0) * (window._ffQueueMsPerReq || 80);
         var deviation = actualMs - estMs;
+        // How many ticks were left in the countdown when results arrived?
+        var ticksElapsed = Math.floor(actualMs / (window._ffQueueMsPerReq || 80));
+        var remainingEst = Math.max(0, (window._ffQueueDepth || 0) - ticksElapsed);
         console.info('[foamfactory-ai] queue estimate deviation: predicted ' + estMs + 'ms, actual ' +
-          actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms)');
+          actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms). ' +
+          'Countdown was at ~' + remainingEst + ' of ' + (window._ffQueueDepth || 0) + ' when results arrived.');
       }
       ffL.remove();
     }
