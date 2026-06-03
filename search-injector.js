@@ -589,9 +589,20 @@
     document.querySelectorAll('.gsc-search-box, .gsc-above-wrapper-area, .gsc-input-box')
       .forEach(function(el){ el.style.display = 'none'; });
 
-    // Clean up loading indicator + reveal results
+    // Clean up loading indicator + log queue estimate deviation
     if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
-    var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
+    var ffL = document.getElementById('ff-loading');
+    if (ffL) {
+      // Log how far off the countdown was from when results actually arrived
+      if (window._ffQueueStart) {
+        var actualMs = Math.round(performance.now() - window._ffQueueStart);
+        var estMs = (window._ffQueueDepth || 0) * (window._ffQueueMsPerReq || 80);
+        var deviation = actualMs - estMs;
+        console.info('[foamfactory-ai] queue estimate deviation: predicted ' + estMs + 'ms, actual ' +
+          actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms)');
+      }
+      ffL.remove();
+    }
     // Remove the FOUC-prevention CSS now that AI results are in place
     var hideStyle = document.getElementById('ff-ai-hide');
     if (hideStyle) hideStyle.remove();
@@ -716,11 +727,14 @@
         loadingEl.textContent = 'Connecting...';
         loadingAnchor.parentNode.insertBefore(loadingEl, loadingAnchor);
         console.info('[foamfactory-ai] connecting to search backend...');
+        window._ffQueueStart = performance.now();
         // Fire-and-forget: ask the backend how many are in the queue
         fetch(API.replace('/search', '/queue')).then(function(r){ return r.json(); }).then(function(qData){
           if (!qData || !document.getElementById('ff-loading')) return;
           var depth = qData.depth || 0;
           var msPerReq = qData.ms_per_request || 80;
+          window._ffQueueDepth = depth;
+          window._ffQueueMsPerReq = msPerReq;
           if (depth <= 0) {
             loadingEl.textContent = 'You\'re next — searching now...';
             console.info('[foamfactory-ai] queue empty — searching now (' + msPerReq + 'ms avg)');
