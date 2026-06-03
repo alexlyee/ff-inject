@@ -761,7 +761,6 @@
         var QUEUE_MSGS = [
           'Just {depth} foam friends ahead of you...',
           '{depth} searches ahead. We\'re on it.',
-          'Almost there! {depth} searches to go.',
           '{depth} other shoppers finding their foam first.',
           'Popular right now — {depth} people ahead.',
           'Hold tight — {depth} customers finishing up.',
