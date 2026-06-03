@@ -699,7 +699,7 @@
         loadingContainer.innerHTML = '';
         var loadingEl = document.createElement('div');
         loadingEl.id = 'ff-loading';
-        loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;';
+        loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;text-align:center;';
         loadingEl.textContent = 'Searching...';
         loadingContainer.appendChild(loadingEl);
         loadingContainer.style.visibility = 'visible';
