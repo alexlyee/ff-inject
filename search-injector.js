@@ -668,7 +668,10 @@
       });
     }
 
-    // Skeleton loading: show placeholder cards while fetch is in progress.
+    // Skeleton loading: shimmer placeholder cards while fetch is in progress.
+    // You'll probably never see these — results arrive in <500ms on a normal
+    // connection. They exist for slow connections / high-load edge cases.
+    // Zero maintenance burden: purely CSS + DOM, cleaned up in all exit paths.
     // Gives a polished feel even on slower queries. Removed by injectHits().
     if (isSiteSearch) {
       var skeletonContainer = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
