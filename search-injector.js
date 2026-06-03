@@ -60,6 +60,12 @@
     var hideStyle = document.createElement('style');
     hideStyle.id = 'ff-ai-hide';
     hideStyle.textContent = '#js-product-list, .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; } [data-ai-type] { transition: background 0.15s, box-shadow 0.15s; cursor: pointer; } [data-ai-type]:hover { background: #f5f7fa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); } [data-ai-type]:hover img { transform: scale(1.05); } [data-ai-type] img { transition: transform 0.2s; }';
+    // On site search, also hide the native "Search Results for: X" heading
+    // immediately (it's a sibling h3 above #content-item, not inside it).
+    // Without this, it flashes for ~1s before DOMContentLoaded hides it.
+    if (onSiteSearchPage()) {
+      hideStyle.textContent += ' h3 { display: none; }';
+    }
     document.head.appendChild(hideStyle);
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
@@ -716,7 +722,7 @@
           var depth = qData.depth || 0;
           var msPerReq = qData.ms_per_request || 80;
           if (depth <= 0) {
-            loadingEl.textContent = 'Searching...';
+            loadingEl.textContent = 'You\'re next — searching now...';
             console.info('[foamfactory-ai] queue empty — searching now (' + msPerReq + 'ms avg)');
           } else {
             var remaining = depth;
@@ -725,7 +731,7 @@
             window._ffLoadingInterval = setInterval(function(){
               remaining--;
               if (remaining <= 0) {
-                loadingEl.textContent = 'Searching...';
+                loadingEl.textContent = 'You\'re next — searching now...';
                 console.info('[foamfactory-ai] queue cleared — searching now');
                 if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
               } else {
