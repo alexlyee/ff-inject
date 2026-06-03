@@ -262,12 +262,12 @@
       '<div class="column whole" data-ai-rank="' + (index + 1) + '" data-ai-type="' + esc(type) + '" style="padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;align-items:flex-start;">' +
         imgHTML +
         '<div style="flex:1;min-width:0;">' +
-          '<div style="display:flex;align-items:baseline;column-gap:8px;row-gap:2px;flex-wrap:wrap;">' +
-            '<span style="' + badgeCss + '">' + esc(badgeText) + '</span>' +
-            '<a href="' + href + '" style="font-family:montserratbold,sans-serif;font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:18px;line-height:18px;">' + esc(hit.name) + '</a>' +
-            (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
+          '<div style="display:flex;align-items:center;column-gap:8px;row-gap:2px;flex-wrap:nowrap;">' +
+            '<span style="' + badgeCss + ';flex-shrink:0;">' + esc(badgeText) + '</span>' +
+            '<a href="' + href + '" style="font-family:montserratbold,sans-serif;font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:18px;line-height:18px;flex:1;min-width:0;">' + esc(hit.name) + '</a>' +
             priceHTML +
           '</div>' +
+          (hit.code ? '<div style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;margin-top:2px;">' + esc(hit.code) + '</div>' : '') +
           (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + highlightTerms(esc(snippet), query) +
             '</div>' : '') +
           breadcrumb +
