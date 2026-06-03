@@ -39,7 +39,7 @@
       location.pathname.indexOf('/search.html') !== -1) {
     var hideStyle = document.createElement('style');
     hideStyle.id = 'ff-ai-hide';
-    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; } [data-ai-type] { transition: background 0.15s; cursor: pointer; } [data-ai-type]:hover { background: #f5f7fa; }';
+    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; } [data-ai-type] { transition: background 0.15s, box-shadow 0.15s; cursor: pointer; } [data-ai-type]:hover { background: #f5f7fa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); } [data-ai-type]:hover img { transform: scale(1.05); } [data-ai-type] img { transition: transform 0.2s; }';
     document.head.appendChild(hideStyle);
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
@@ -124,6 +124,17 @@
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
   }); }
+
+  function highlightTerms(text, query){
+    // Bold query terms in snippet text. Splits the query into words and
+    // wraps case-insensitive matches in <strong>. Input must already be
+    // HTML-escaped (esc()). Returns HTML string.
+    if (!query || !text) return text;
+    var words = query.split(/\s+/).filter(function(w){ return w.length > 2; });
+    if (!words.length) return text;
+    var re = new RegExp('(' + words.map(function(w){ return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'gi');
+    return text.replace(re, '<strong>$1</strong>');
+  }
 
   function appendTrackingParam(href, hash){
     // Miva's friendly URLs (*.html) return 404 with unknown query params —
@@ -260,7 +271,7 @@
             (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
-          (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + esc(snippet) +
+          (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + highlightTerms(esc(snippet), getQuery()) +
             '</div>' : '') +
           breadcrumb +
         '</div>' +
@@ -455,9 +466,13 @@
       var chipBase = 'display:inline-block;padding:4px 12px;border-radius:2px;font-size:13px;' +
         'font-weight:600;cursor:pointer;user-select:none;';
       var chipOff = chipBase + 'background:#e4e4e4;color:#999;';
+      // Count results per type for chip labels
+      var typeCounts = {};
+      filtered.forEach(function(h){ var t = h.type || 'product'; typeCounts[t] = (typeCounts[t]||0) + 1; });
+      function chipLabel(t){ return (CHIP_LABELS[t] || t) + ' (' + (typeCounts[t]||0) + ')'; }
       availableTypes.forEach(function(t){
         var chip = document.createElement('span');
-        chip.textContent = CHIP_LABELS[t] || t;
+        chip.textContent = chipLabel(t);
         chip.style.cssText = chipBase + (badges[t] || badges.product);
         chip.addEventListener('click', function(){
           activeTypes[t] = !activeTypes[t];
