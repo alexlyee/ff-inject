@@ -198,7 +198,13 @@
   var _is_fbm = null;
   function IS_FBM() {
     if (_is_fbm === null) {
-      _is_fbm = !!document.querySelector('#js-product-list') || location.hostname.indexOf('foambymail') !== -1;
+      // Detect foambymail.com (2016_Framework) vs competitivefoam.com (Shadows).
+      // On the live site, hostname contains 'foambymail'. On proxy demos, hostname
+      // is a trycloudflare.com tunnel — fall back to DOM checks + FF_CANADA flag.
+      _is_fbm = !!document.querySelector('#js-product-list') ||
+                !!document.querySelector('#js-SRCH') ||
+                location.hostname.indexOf('foambymail') !== -1 ||
+                !!window.FF_CANADA;
     }
     return _is_fbm;
   }
