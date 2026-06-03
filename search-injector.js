@@ -5,10 +5,34 @@
    alongside products; each hit renders with a type badge so customers can
    tell products apart from categories apart from resource pages at a glance. */
 (function(){
-  var API = 'https://debian-rise-subscribers-schools.trycloudflare.com/search';
+  var API_BASE = 'debian-rise-subscribers-schools.trycloudflare.com';
+  var API = 'https://' + API_BASE + '/search';
   // Injector build tag — shown in the console banner so a live/over-break page
   // can be matched to a deploy. Date-based; bump the -N suffix on same-day redeploys.
   var VERSION = '2026.05.29-1';
+
+  var FOUC_TIMEOUT_MS = 3000;
+  var SNIPPET_MAX_SITE = 160;
+  var SNIPPET_MAX_PRODUCT = 100;
+  var PAGE_SIZE = 12;
+  var SITE_SEARCH_LIMIT = 48;
+  var HIGHLIGHT_MIN_WORD_LEN = 2;
+  var MIVA_ALL_SENTINEL = 9999;
+
+  function onProductSearchPage(){
+    return location.search.indexOf('Screen=SRCH') !== -1 ||
+           location.pathname.indexOf('/product-search') !== -1;
+  }
+
+  function onSiteSearchPage(){
+    // "Search Site" submits to Screen=SEARCH with q= param (Google CSE page)
+    return location.search.indexOf('Screen=SEARCH') !== -1 ||
+           location.pathname.indexOf('/search.html') !== -1;
+  }
+
+  function onSearchPage(){
+    return onProductSearchPage() || onSiteSearchPage();
+  }
 
   // Anonymous per-browser session id, stored first-party in localStorage on
   // the storefront. No PII — just a random tag so the backend can count
@@ -32,10 +56,7 @@
   // Safety: a 3-second timeout removes the hide CSS if AI results never
   // arrive (backend down, JS error, param mismatch, etc.) so the page
   // is never permanently blank.
-  if (location.search.indexOf('Screen=SRCH') !== -1 ||
-      location.search.indexOf('Screen=SEARCH') !== -1 ||
-      location.pathname.indexOf('/product-search') !== -1 ||
-      location.pathname.indexOf('/search.html') !== -1) {
+  if (onSearchPage()) {
     var hideStyle = document.createElement('style');
     hideStyle.id = 'ff-ai-hide';
     hideStyle.textContent = '#js-product-list, .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; } [data-ai-type] { transition: background 0.15s, box-shadow 0.15s; cursor: pointer; } [data-ai-type]:hover { background: #f5f7fa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); } [data-ai-type]:hover img { transform: scale(1.05); } [data-ai-type] img { transition: transform 0.2s; }';
@@ -47,13 +68,12 @@
       if (sk) sk.remove();
       document.querySelectorAll('.ff-skeleton').forEach(function(el){ el.remove(); });
       window._ffTimedOut = true;  // suppress late fetch results
-    }, 3000);
+    }, FOUC_TIMEOUT_MS);
   }
 
   // Inline SVG placeholder (data URI). Branded gray gradient tile — stands in
-  // for real product photos until per-product AI-generated imagery lands
-  // (FLUX.1-schnell on the Ascent, planned). Using a data URI means no
-  // second HTTP request, no external dependency, no broken-image fallback.
+  // for products with missing images. Data URI = no second HTTP request, no
+  // external dependency, no broken-image fallback.
   var PLACEHOLDER_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360">' +
       '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
@@ -92,21 +112,9 @@
   }
   function badgeStyles(){ return isCanadaSite() ? BADGE_STYLES_RED : BADGE_STYLES_BLUE; }
   var BADGE_LABEL = { product: 'Product', category: 'Category', page: 'Page' };
-
-  function onProductSearchPage(){
-    return location.search.indexOf('Screen=SRCH') !== -1 ||
-           location.pathname.indexOf('/product-search') !== -1;
-  }
-
-  function onSiteSearchPage(){
-    // "Search Site" submits to Screen=SEARCH with q= param (Google CSE page)
-    return location.search.indexOf('Screen=SEARCH') !== -1 ||
-           location.pathname.indexOf('/search.html') !== -1;
-  }
-
-  function onSearchPage(){
-    return onProductSearchPage() || onSiteSearchPage();
-  }
+  // CSS constants for breadcrumb styling (hoisted — used per card, shouldn't rebuild each time)
+  var CRUMB_STYLE = 'font-size:12px;color:#888;margin-top:4px;font-family:ui-monospace,monospace;';
+  var CRUMB_LINK = 'color:#888;text-decoration:none;border-bottom:1px dotted #bbb;';
 
   function getQuery(){
     var p = new URLSearchParams(location.search);
@@ -124,8 +132,8 @@
     return q;
   }
 
-  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
-    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   }); }
 
   function highlightTerms(text, query){
@@ -133,7 +141,7 @@
     // wraps case-insensitive matches in <strong>. Input must already be
     // HTML-escaped (esc()). Returns HTML string.
     if (!query || !text) return text;
-    var words = query.split(/\s+/).filter(function(w){ return w.length > 2; });
+    var words = query.split(/\s+/).filter(function(w){ return w.length > HIGHLIGHT_MIN_WORD_LEN; });
     if (!words.length) return text;
     var re = new RegExp('(' + words.map(function(w){ return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'gi');
     return text.replace(re, '<strong>$1</strong>');
@@ -192,7 +200,7 @@
     return PLACEHOLDER_URI;
   }
 
-  function siteSearchCardHTML(hit, hash){
+  function siteSearchCardHTML(hit, hash, index, query){
     // Site search card — shows all types with badge, breadcrumb, and richer layout.
     // Used on the "Search Site" page (Screen=SEARCH) to replace Google CSE.
     var href = buildHref(hit, hash);
@@ -212,8 +220,8 @@
     var badgeText = BADGE_LABEL[type] || type;
     if (type === 'page' && (hit.url_path || '').indexOf('/blog/') !== -1) badgeText = 'Blog';
     var imgSrc = buildImageSrc(hit);
-    var snippet = (hit.snippet || '').substring(0, 160);
-    if (snippet && hit.snippet && hit.snippet.length > 160) snippet += '...';
+    var snippet = (hit.snippet || '').substring(0, SNIPPET_MAX_SITE);
+    if (snippet && hit.snippet && hit.snippet.length > SNIPPET_MAX_SITE) snippet += '...';
     var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
     var startPrice = (hit.starting_at_price && hit.starting_at_price > 0) ? ('$' + Number(hit.starting_at_price).toFixed(2)) : '';
     var priceHTML = startPrice
@@ -223,8 +231,8 @@
     //   blog (has tags)   → comma-separated clickable WP tag links
     //   product/category  → "Top > Mid > Leaf", each segment links to /<code>.html
     //   fallback          → plain breadcrumb text
-    var crumbStyle = 'font-size:12px;color:#888;margin-top:4px;font-family:ui-monospace,monospace;';
-    var crumbLink = 'color:#888;text-decoration:none;border-bottom:1px dotted #bbb;';
+    var crumbStyle = CRUMB_STYLE;
+    var crumbLink = CRUMB_LINK;
     var breadcrumb = '';
     if (hit.tags && hit.tags.length) {
       breadcrumb = '<div style="' + crumbStyle + '">' + hit.tags.map(function(t){
@@ -251,7 +259,7 @@
       ? '<a href="' + href + '" style="flex:0 0 80px;"><img src="' + imgSrc + '" alt="" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:0;" onerror="this.parentNode.style.display=\'none\'"></a>'
       : '';
     return '' +
-      '<div class="column whole" data-ai-rank="1" data-ai-type="' + esc(type) + '" style="padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;align-items:flex-start;">' +
+      '<div class="column whole" data-ai-rank="' + (index + 1) + '" data-ai-type="' + esc(type) + '" style="padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;align-items:flex-start;">' +
         imgHTML +
         '<div style="flex:1;min-width:0;">' +
           '<div style="display:flex;align-items:baseline;column-gap:8px;row-gap:2px;flex-wrap:wrap;">' +
@@ -260,14 +268,14 @@
             (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;">' + esc(hit.code) + '</span>' : '') +
             priceHTML +
           '</div>' +
-          (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + highlightTerms(esc(snippet), getQuery()) +
+          (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + highlightTerms(esc(snippet), query) +
             '</div>' : '') +
           breadcrumb +
         '</div>' +
       '</div>';
   }
 
-  function cardHTML(hit, hash){
+  function cardHTML(hit, hash, index){
     var href = buildHref(hit, hash);
     var price = (hit.price && hit.price > 0) ? ('$' + Number(hit.price).toFixed(2)) : '';
     var startPrice = (hit.starting_at_price && hit.starting_at_price > 0) ? ('$' + Number(hit.starting_at_price).toFixed(2)) : '';
@@ -277,15 +285,15 @@
       (badgeStyles()[type] || badgeStyles().product);
     var badgeText = BADGE_LABEL[type] || type;
     var imgSrc = buildImageSrc(hit);
-    var snippet = (hit.snippet || '').substring(0, 100);
-    if (snippet && hit.snippet && hit.snippet.length > 100) snippet += '...';
+    var snippet = (hit.snippet || '').substring(0, SNIPPET_MAX_PRODUCT);
+    if (snippet && hit.snippet && hit.snippet.length > SNIPPET_MAX_PRODUCT) snippet += '...';
 
     // foambymail.com 2016_Framework layout: 3-column row (image | name+desc | price)
     var priceHTML = startPrice
       ? '<p class="starting-price"><strong>Starting at ' + startPrice + '</strong></p>'
       : (price ? '<p class="starting-price"><strong>' + price + '</strong></p>' : '');
     return '' +
-      '<div class="column whole category-product" data-ai-rank="1" data-ai-type="' + esc(type) + '">' +
+      '<div class="column whole category-product" data-ai-rank="' + (index + 1) + '" data-ai-type="' + esc(type) + '">' +
         '<a href="' + href + '" title="' + esc(hit.name) + '" class="column one-third large-one-sixth medium-one-sixth small-one-sixth">' +
           '<span class="flag flag--">' +
             '<img src="' + imgSrc + '" alt="' + esc(hit.name) + '" loading="lazy" onerror="this.src=\'' + PLACEHOLDER_URI + '\';this.onerror=null">' +
@@ -345,6 +353,9 @@
       } else {
         container.innerHTML = '';
       }
+      // Accessibility: announce result changes to screen readers
+      container.setAttribute('aria-live', 'polite');
+      container.setAttribute('aria-label', 'Search results');
     } else {
       // foambymail.com product search: product list is #js-product-list
       container = document.querySelector('#js-product-list');
@@ -399,7 +410,6 @@
       // Site search: a results-count line + client-side "load more". One
       // fetch returned all reasonably-relevant hits (backend score floor);
       // we reveal them in batches from memory — no extra round-trips.
-      var PAGE = 12;
       var shown = 0;
       var brand = isCanadaSite() ? '#bf221c' : '#08559a';
 
@@ -465,7 +475,7 @@
         'font-size:14px;font-weight:600;cursor:pointer;';
 
       // Active-filtered subset + render logic. rerender() is called on chip
-      // toggle; renderNext() appends the next PAGE from the active set.
+      // toggle; renderNext() appends the next PAGE_SIZE from the active set.
       var activeFiltered = [];
       var secs = ((elapsedMs || 0) / 1000).toFixed(2);
       function updateCount(){
@@ -473,12 +483,12 @@
           (activeFiltered.length === 1 ? '' : 's') + ' (' + secs + ' seconds)';
       }
       function renderNext(){
-        activeFiltered.slice(shown, shown + PAGE).forEach(function(h){
+        activeFiltered.slice(shown, shown + PAGE_SIZE).forEach(function(h, i){
           var tmp = document.createElement('div');
-          tmp.innerHTML = cardFn(h, ffQ || '');
+          tmp.innerHTML = cardFn(h, ffQ || '', shown + i, q);
           container.insertBefore(tmp.firstChild, btnWrap);
         });
-        shown = Math.min(shown + PAGE, activeFiltered.length);
+        shown = Math.min(shown + PAGE_SIZE, activeFiltered.length);
         if (shown >= activeFiltered.length) moreBtn.style.display = 'none';
         else { moreBtn.style.display = ''; moreBtn.textContent = 'Load more results (' + (activeFiltered.length - shown) + ' more)'; }
       }
@@ -515,9 +525,9 @@
       });
       rerender();  // initial render with all types active
     } else {
-      filtered.forEach(function(h){
+      filtered.forEach(function(h, i){
         var tmp = document.createElement('div');
-        tmp.innerHTML = cardFn(h, ffQ || '');
+        tmp.innerHTML = cardFn(h, ffQ || '', i, q);
         container.appendChild(tmp.firstChild);
       });
     }
@@ -535,16 +545,22 @@
         cards[focusIdx].style.outline = '2px solid ' + (isCanadaSite() ? '#bf221c' : '#08559a');
         cards[focusIdx].scrollIntoView({block:'nearest', behavior:'smooth'});
       }
-      document.addEventListener('keydown', function(e){
+      // Remove any previous keydown handler (prevents stacking if injectHits
+      // runs twice, e.g. prefetch fallback → fetch)
+      if (window._ffKeyHandler) document.removeEventListener('keydown', window._ffKeyHandler);
+      window._ffKeyHandler = function(e){
         var cards = getCards();
         if (!cards.length) return;
+        // Only intercept arrows when focus is not inside an input/textarea
+        if (document.activeElement && /input|textarea|select/i.test(document.activeElement.tagName)) return;
         if (e.key === 'ArrowDown') { e.preventDefault(); focusCard(Math.min(focusIdx + 1, cards.length - 1)); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); focusCard(Math.max(focusIdx - 1, 0)); }
         else if (e.key === 'Enter' && focusIdx >= 0 && focusIdx < cards.length) {
           var link = cards[focusIdx].querySelector('a[href]');
           if (link) link.click();
         }
-      });
+      };
+      document.addEventListener('keydown', window._ffKeyHandler);
     }
 
     // Hide leftover Google CSE elements (search input box, branding bar) so only
@@ -573,7 +589,7 @@
     if (screen === 'OCNF' || /invoice|order[-_ ]?confirmation/i.test(document.title)) {
       event = 'order';
     }
-    var api = 'https://debian-rise-subscribers-schools.trycloudflare.com/log_conversion';
+    var api = 'https://' + API_BASE + '/log_conversion';
     try {
       // navigator.sendBeacon fire-and-forget so it survives page teardown
       // during checkout redirects.
@@ -626,14 +642,14 @@
     // 12 = default, 24 = expanded, 9999 = All. Empty/missing = 12.
     var urlParams = new URLSearchParams(location.search);
     var ppp = parseInt(urlParams.get('ProductsPerPage'), 10);
-    var limit = (ppp > 0 && ppp < 9999) ? ppp : (ppp >= 9999 ? 100 : 12);
+    var limit = (ppp > 0 && ppp < MIVA_ALL_SENTINEL) ? ppp : (ppp >= MIVA_ALL_SENTINEL ? 100 : PAGE_SIZE);
 
     // Product search: products only, paged by Miva's VIEW selector. Site
     // search: all types, one generous fetch (48) that the load-more button
     // reveals in batches client-side. limit>=30 triggers the backend score
     // floor → returns "all reasonably relevant", which is what we paginate.
     var isSiteSearch = onSiteSearchPage();
-    if (isSiteSearch) limit = 48;
+    if (isSiteSearch) limit = SITE_SEARCH_LIMIT;
 
     // --- Immediate site-search page fixups (before fetch, no lag) ---
     if (isSiteSearch) {
@@ -691,7 +707,7 @@
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     })
-      .then(function(r){ return r.json(); })
+      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(data){
         var tFetch = Math.round(performance.now() - t0);
         // Kill switch: backend says search is disabled → render nothing,
