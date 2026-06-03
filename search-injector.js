@@ -707,29 +707,36 @@
         var loadingEl = document.createElement('div');
         loadingEl.id = 'ff-loading';
         loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;text-align:center;';
-        loadingEl.textContent = 'Searching...';
+        loadingEl.textContent = 'Connecting...';
         loadingAnchor.parentNode.insertBefore(loadingEl, loadingAnchor);
+        console.info('[foamfactory-ai] connecting to search backend...');
         // Fire-and-forget: ask the backend how many are in the queue
         fetch(API.replace('/search', '/queue')).then(function(r){ return r.json(); }).then(function(qData){
           if (!qData || !document.getElementById('ff-loading')) return;
           var depth = qData.depth || 0;
           var msPerReq = qData.ms_per_request || 80;
           if (depth <= 0) {
-            loadingEl.textContent = 'You\'re next — searching now...';
+            loadingEl.textContent = 'Searching...';
+            console.info('[foamfactory-ai] queue empty — searching now (' + msPerReq + 'ms avg)');
           } else {
             var remaining = depth;
             loadingEl.textContent = remaining + ' ahead of you...';
+            console.info('[foamfactory-ai] queue depth: ' + depth + ' (' + msPerReq + 'ms/req, ~' + Math.round(depth * msPerReq / 1000 * 10) / 10 + 's est)');
             window._ffLoadingInterval = setInterval(function(){
               remaining--;
               if (remaining <= 0) {
-                loadingEl.textContent = 'You\'re next — loading results...';
+                loadingEl.textContent = 'Searching...';
+                console.info('[foamfactory-ai] queue cleared — searching now');
                 if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
               } else {
                 loadingEl.textContent = remaining + ' ahead of you...';
               }
             }, msPerReq);
           }
-        }).catch(function(){}); // queue endpoint failure is silent — default text stays
+        }).catch(function(){
+          // Queue endpoint unreachable — stay on "Connecting..." until results arrive
+          console.info('[foamfactory-ai] queue endpoint unreachable — waiting for results');
+        });
       }
     }
 
