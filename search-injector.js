@@ -17,7 +17,7 @@
   var PAGE_SIZE = 12;
   var SITE_SEARCH_LIMIT = 48;
   var HIGHLIGHT_MIN_WORD_LEN = 2;
-  var MIVA_ALL_SENTINEL = 9999;
+  var MIVA_ALL_SENTINEL = 9999;  // Miva sends ProductsPerPage=9999 for "All" — we cap at 100 to avoid hammering the backend
 
   function onProductSearchPage(){
     return location.search.indexOf('Screen=SRCH') !== -1 ||
@@ -150,6 +150,9 @@
   function appendTrackingParam(href, hash){
     // Miva's friendly URLs (*.html) return 404 with unknown query params —
     // even product-display.html?Product_Code=X&ff_q=Y breaks. Skip all .html URLs.
+    // Miva friendly URLs serve a soft 404 (200 + "page not found" body) for
+    // unrecognized query params, not a redirect — so appending any unknown
+    // param like ff_q silently breaks the link for the customer.
     if (href.indexOf('.html') !== -1) return href;
     var sep = href.indexOf('?') === -1 ? '?' : '&';
     return href + sep + 'ff_q=' + encodeURIComponent(hash);
@@ -212,6 +215,9 @@
     // label (inline-block let short labels like "Product" ride high at cap-height).
     // No margin-right — the row's gap:8px already spaces badge↔title; the old
     // margin stacked with it for a 16px gap while everything else was 8px.
+    // inline-flex is safe here — site-search cards use non-floated flex layout.
+    // Product-search cards (cardHTML) are inside float:left .column parents where
+    // CSS blockification would break the layout — those don't use this badge style.
     var badgeCss = 'display:inline-flex;align-items:center;padding:3px 8px;border-radius:2px;' +
       'font-size:11px;font-weight:600;letter-spacing:.02em;line-height:1;' +
       (badgeStyles()[type] || badgeStyles().product);
@@ -403,6 +409,9 @@
       // AND no US-specific url_path (url_path === canada_url_path).
       filtered = hits.filter(function(h){
         if ((h.type || 'product') !== 'product') return false;
+        // Products with Product_Code= in url_path are Miva merchant.mvc links
+        // shared across both sites; Canada-only items use friendly URLs under
+        // the canada subdomain without Product_Code.
         var isCanadaOnly = (h.url_path && h.url_path.indexOf('canada.foambymail.com') !== -1) &&
                            (!h.url_path.match(/Product_Code=/));
         return !isCanadaOnly;
@@ -672,6 +681,9 @@
       document.querySelectorAll('#search-input, input[name="Search"], input[name="q"]')
         .forEach(function(inp){ if (!inp.value) inp.value = q; });
       // Select "Search Site" radio (page defaults to "Search Products")
+      // The search bar defaults to "Search Products" even on Screen=SEARCH.
+      // Check "Search Site" so a customer refining their query stays on site
+      // search instead of accidentally switching to product search.
       ['#search-site', '#mobile-search-site'].forEach(function(sel){
         var radio = document.querySelector(sel);
         if (radio) radio.checked = true;
