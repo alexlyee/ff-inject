@@ -361,26 +361,22 @@
     } else {
       // foambymail.com product search: product list is #js-product-list
       container = document.querySelector('#js-product-list');
-      var mivaSaidNoResults = !container;
       if (!container) {
-        // Miva returned 0 results → stripped-down page (no VIEW buttons,
-        // no pagination, no full search bar). Hide the "no products matched"
-        // message and inject our container + a results-count line.
+        // Miva returned 0 results → stripped-down page. Just hide the "no
+        // products matched" text and insert our card container. Leave ALL
+        // native page chrome (search form, etc.) untouched — the page should
+        // look identical whether Miva's backend found results or not.
         var noResults = document.querySelector('.italic') ||
           Array.from(document.querySelectorAll('p')).find(function(el){ return /no products matched/i.test(el.textContent || ''); });
         container = document.createElement('div');
         container.id = 'js-product-list';
         container.className = 'row';
-        if (noResults && noResults.closest('.row')) {
-          noResults.closest('.row').replaceWith(container);
+        if (noResults) {
+          // Replace just the "no products matched" text, not the whole row
+          noResults.replaceWith(container);
         } else {
           var host = document.querySelector('#js-SRCH .row') || document.querySelector('#js-SRCH') || document.body;
           host.appendChild(container);
-        }
-        // Also hide the simplified "no results" search form — we're showing results
-        var noResultsForm = document.querySelector('#ps-search-filter-form');
-        if (noResultsForm && noResultsForm.closest('.row')) {
-          noResultsForm.closest('.row').style.display = 'none';
         }
       } else {
         container.innerHTML = '';
@@ -536,41 +532,6 @@
       });
       rerender();  // initial render with all types active
     } else {
-      // Product search: if Miva returned 0 results but we have AI hits,
-      // add a count line + search bar since Miva's template didn't render those.
-      if (mivaSaidNoResults && filtered.length > 0) {
-        var brand = isCanadaSite() ? '#bf221c' : '#08559a';
-        // Count line
-        var prodCount = document.createElement('div');
-        prodCount.style.cssText = 'font-size:13px;color:#888;margin:10px 0;';
-        var secs = ((elapsedMs || 0) / 1000).toFixed(2);
-        prodCount.textContent = filtered.length + ' result' + (filtered.length === 1 ? '' : 's') + ' (' + secs + ' seconds)';
-        container.parentNode.insertBefore(prodCount, container);
-        // Search bar (Miva's was hidden along with the "no results" form)
-        var searchForm = document.createElement('form');
-        searchForm.method = 'post';
-        searchForm.action = location.pathname + '?Screen=SRCH';
-        searchForm.style.cssText = 'margin:10px 0 14px;display:flex;gap:8px;';
-        searchForm.innerHTML = '<input type="search" name="Search" value="' + esc(q) + '" style="flex:1;padding:8px 12px;border:1px solid #ccc;border-radius:3px;font-size:14px;">' +
-          '<button type="submit" style="padding:8px 20px;background:' + brand + ';color:#fff;border:none;border-radius:3px;font-weight:600;cursor:pointer;">Search</button>';
-        container.parentNode.insertBefore(searchForm, container);
-        // VIEW 12/24/All selector (Miva only renders this when it has results)
-        var viewBar = document.createElement('div');
-        viewBar.style.cssText = 'margin:0 0 10px;font-size:13px;color:#656d78;display:flex;align-items:center;gap:12px;';
-        var currentPPP = parseInt(new URLSearchParams(location.search).get('ProductsPerPage'), 10) || PAGE_SIZE;
-        var baseUrl = location.pathname + '?Screen=SRCH&Search=' + encodeURIComponent(q);
-        viewBar.innerHTML = '<span>' + prodCount.textContent + '</span><span style="margin-left:auto;">View: ' +
-          [12, 24, MIVA_ALL_SENTINEL].map(function(n){
-            var label = n >= MIVA_ALL_SENTINEL ? 'All' : n;
-            var active = (n >= MIVA_ALL_SENTINEL && currentPPP >= MIVA_ALL_SENTINEL) || n === currentPPP;
-            return active
-              ? '<strong>' + label + '</strong>'
-              : '<a href="' + baseUrl + '&ProductsPerPage=' + n + '" style="color:' + brand + ';text-decoration:none;">' + label + '</a>';
-          }).join(' | ') + '</span>';
-        container.parentNode.insertBefore(viewBar, container);
-        // Remove the separate count line (now in viewBar)
-        prodCount.remove();
-      }
       filtered.forEach(function(h, i){
         var tmp = document.createElement('div');
         tmp.innerHTML = cardFn(h, ffQ || '', i, q);
