@@ -694,16 +694,18 @@
     // The /queue call is fire-and-forget — it updates the display if it arrives
     // before /search, otherwise the default "Searching..." shows until results.
     if (isSiteSearch) {
-      var loadingContainer = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
-      if (loadingContainer) {
-        loadingContainer.innerHTML = '';
+      // Loading indicator goes ABOVE the hidden container, NOT inside it.
+      // This way if the timeout fires, removing the loading + FOUC hide reveals
+      // the native content intact underneath. If we cleared the container for
+      // the loading text, a timeout would leave a blank page (native gone +
+      // loading gone = nothing).
+      var loadingAnchor = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
+      if (loadingAnchor && loadingAnchor.parentNode) {
         var loadingEl = document.createElement('div');
         loadingEl.id = 'ff-loading';
         loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;text-align:center;';
         loadingEl.textContent = 'Searching...';
-        loadingContainer.appendChild(loadingEl);
-        loadingContainer.style.visibility = 'visible';
-        loadingContainer.style.minHeight = '0';
+        loadingAnchor.parentNode.insertBefore(loadingEl, loadingAnchor);
         // Fire-and-forget: ask the backend how many are in the queue
         fetch(API.replace('/search', '/queue')).then(function(r){ return r.json(); }).then(function(qData){
           if (!qData || !document.getElementById('ff-loading')) return;
