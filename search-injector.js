@@ -597,15 +597,16 @@
       // Log how far off the countdown was from when results actually arrived
       if (window._ffQueueStart) {
         var actualMs = Math.round(performance.now() - window._ffQueueStart);
-        var estMs = (window._ffQueueDepth || 0) * (window._ffQueueMsPerReq || 80);
-        var deviation = actualMs - estMs;
-        // Exact countdown position when results arrived. Negative = countdown
-        // finished N positions ago (user saw "searching" message for that many
-        // ticks worth of time). Positive = results arrived while still counting.
-        var countdownPos = (window._ffCountdownRemaining !== undefined) ? window._ffCountdownRemaining : 0;
-        console.info('[foamfactory-ai] queue estimate deviation: predicted ' + estMs + 'ms, actual ' +
-          actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms). ' +
-          'Countdown at ' + countdownPos + ' of ' + (window._ffQueueDepth || 0) + ' when results arrived.');
+        if (window._ffQueueDepth && window._ffQueueDepth > 0) {
+          var estMs = window._ffQueueDepth * (window._ffQueueMsPerReq || 80);
+          var deviation = actualMs - estMs;
+          var countdownPos = (window._ffCountdownRemaining !== undefined) ? window._ffCountdownRemaining : 0;
+          console.info('[foamfactory-ai] queue estimate deviation: predicted ' + estMs + 'ms, actual ' +
+            actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms). ' +
+            'Countdown at ' + countdownPos + ' of ' + window._ffQueueDepth + ' when results arrived.');
+        } else {
+          console.info('[foamfactory-ai] no queue detected — results in ' + actualMs + 'ms');
+        }
       }
       ffL.remove();
     }
