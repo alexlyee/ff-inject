@@ -64,9 +64,8 @@
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
       if (s) { s.remove(); console.warn('[foamfactory-ai] timeout — revealing native results'); }
-      var sk = document.getElementById('ff-skeleton-style');
-      if (sk) sk.remove();
-      document.querySelectorAll('.ff-skeleton').forEach(function(el){ el.remove(); });
+      if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
+      var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
       window._ffTimedOut = true;  // suppress late fetch results
     }, FOUC_TIMEOUT_MS);
   }
@@ -344,8 +343,6 @@
       return;
     }
     // Remove skeleton loading + shimmer animation if present
-    var skelStyle = document.getElementById('ff-skeleton-style');
-    if (skelStyle) skelStyle.remove();
 
     var container;
 
@@ -690,37 +687,25 @@
       });
     }
 
-    // Skeleton loading: shimmer placeholder cards while fetch is in progress.
-    // You'll probably never see these — results arrive in <500ms on a normal
-    // connection. They exist for slow connections / high-load edge cases.
-    // Zero maintenance burden: purely CSS + DOM, cleaned up in all exit paths.
-    // Gives a polished feel even on slower queries. Removed by injectHits().
+    // Live loading indicator: shows elapsed time while fetch is in flight.
+    // Replaces the old skeleton shimmer (which was invisible on fast connections
+    // anyway). Updates every 100ms; cleared by injectHits or timeout.
     if (isSiteSearch) {
-      var skeletonContainer = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
-      if (skeletonContainer) {
-        skeletonContainer.innerHTML = '';
-        var skeletonCSS = 'padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;';
-        var shimmer = 'background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:ffShimmer 1.5s infinite;border-radius:4px;';
-        // Inject shimmer keyframes
-        var shimmerStyle = document.createElement('style');
-        shimmerStyle.id = 'ff-skeleton-style';
-        shimmerStyle.textContent = '@keyframes ffShimmer{0%{background-position:200% 0}to{background-position:-200% 0}}';
-        document.head.appendChild(shimmerStyle);
-        for (var sk = 0; sk < 4; sk++) {
-          var skel = document.createElement('div');
-          skel.className = 'ff-skeleton';
-          skel.style.cssText = skeletonCSS;
-          skel.innerHTML = '<div style="width:80px;height:80px;' + shimmer + '"></div>' +
-            '<div style="flex:1;"><div style="width:60%;height:18px;margin-bottom:10px;' + shimmer + '"></div>' +
-            '<div style="width:90%;height:14px;margin-bottom:6px;' + shimmer + '"></div>' +
-            '<div style="width:40%;height:14px;' + shimmer + '"></div></div>';
-          skeletonContainer.appendChild(skel);
-        }
-        // Reveal the container now — the skeleton IS the loading state, so the
-        // FOUC hide (which hides #content-item) should yield to it. Native
-        // content was already cleared above; only skeleton cards remain.
-        skeletonContainer.style.visibility = 'visible';
-        skeletonContainer.style.minHeight = '0';
+      var loadingContainer = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
+      if (loadingContainer) {
+        loadingContainer.innerHTML = '';
+        var loadingEl = document.createElement('div');
+        loadingEl.id = 'ff-loading';
+        loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;';
+        loadingEl.textContent = 'Searching...';
+        loadingContainer.appendChild(loadingEl);
+        loadingContainer.style.visibility = 'visible';
+        loadingContainer.style.minHeight = '0';
+        var loadStart = performance.now();
+        window._ffLoadingInterval = setInterval(function(){
+          var sec = ((performance.now() - loadStart) / 1000).toFixed(1);
+          loadingEl.textContent = 'Reaching out to HQ for results... ' + sec + 's';
+        }, 100);
       }
     }
 
@@ -745,9 +730,8 @@
         if (data.disabled || window._ffTimedOut) {
           var hs = document.getElementById('ff-ai-hide');
           if (hs) hs.remove();
-          var sk = document.getElementById('ff-skeleton-style');
-          if (sk) sk.remove();
-          document.querySelectorAll('.ff-skeleton').forEach(function(el){ el.remove(); });
+          if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
+          var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
           return;
         }
         injectHits(data.hits || [], data.ff_q, data.elapsed_ms);
@@ -770,9 +754,8 @@
         console.warn('[foamfactory-ai] search failed:', err);
         var hideStyle = document.getElementById('ff-ai-hide');
         if (hideStyle) hideStyle.remove();
-        var sk = document.getElementById('ff-skeleton-style');
-        if (sk) sk.remove();
-        document.querySelectorAll('.ff-skeleton').forEach(function(el){ el.remove(); });
+        if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
+        var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
       });
   }
 
