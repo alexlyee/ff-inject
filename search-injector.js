@@ -729,7 +729,17 @@
       if (loadingAnchor && loadingAnchor.parentNode) {
         var loadingEl = document.createElement('div');
         loadingEl.id = 'ff-loading';
-        loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;text-align:center;';
+        loadingEl.style.cssText = 'padding:30px 0;font-size:14px;color:#888;';
+        // Helper: append a new line (stacked, left-aligned). Previous lines stay.
+        function addLine(text) {
+          var line = document.createElement('div');
+          line.textContent = text;
+          line.style.cssText = 'margin:2px 0;';
+          loadingEl.appendChild(line);
+          return line;
+        }
+        // _ffActiveLine: the line that gets updated live (countdown number changes)
+        var _ffActiveLine = null;
         // Random "searching" messages — shown once you're in front of the queue.
         // Rotates on each search for variety. Placeholders: {query}, {count}.
         var SEARCHING_MSGS = [
@@ -761,8 +771,8 @@
           return msg.replace(/\{query\}/g, q).replace(/\{count\}/g, count || '600').replace(/\{depth\}/g, depth || '');
         }
 
-        loadingEl.textContent = 'Connecting to Foam Factory HQ...';
         loadingAnchor.parentNode.insertBefore(loadingEl, loadingAnchor);
+        addLine('Connecting to Foam Factory HQ...');
         console.info('[foamfactory-ai] connecting to search backend...');
         window._ffQueueStart = performance.now();
         // Fire-and-forget: ask the backend how many are in the queue
@@ -791,17 +801,15 @@
           window._ffQueueDepth = depth;
           window._ffQueueMsPerReq = msPerReq;
           if (depth <= 0) {
-            loadingEl.textContent = pickMsg(SEARCHING_MSGS, q, '600', '');
+            addLine(pickMsg(SEARCHING_MSGS, q, '600', ''));
             console.info('[foamfactory-ai] queue empty — searching now (' + msPerReq + 'ms avg)');
           } else {
             var remaining = depth;
-            // Pick ONE message for the whole countdown — don't randomize every tick
-            var queueMsg = pickMsg(QUEUE_MSGS, q, '600', '{depth}'); // {depth} stays as placeholder for live update
+            var queueMsg = pickMsg(QUEUE_MSGS, q, '600', '{depth}');
             var searchingMsg = pickMsg(SEARCHING_MSGS, q, '600', '');
-            loadingEl.textContent = queueMsg.replace(/\{depth\}/g, remaining);
+            // The countdown line updates in-place (only the number changes)
+            _ffActiveLine = addLine(queueMsg.replace(/\{depth\}/g, remaining));
             window._ffCountdownRemaining = remaining;
-            // Adaptive tick rate: accounts for page-load overhead so countdown
-            // reaches 0 roughly when results are expected.
             var elapsedSoFar = performance.now() - window._ffQueueStart;
             var totalEstMs = depth * msPerReq;
             var remainingMs = Math.max(totalEstMs - elapsedSoFar, depth * 10);
@@ -811,18 +819,18 @@
               remaining--;
               window._ffCountdownRemaining = remaining;
               if (remaining <= 0) {
-                loadingEl.textContent = searchingMsg;
+                // Countdown done — add the "searching" line below the countdown
+                addLine(searchingMsg);
                 console.info('[foamfactory-ai] queue cleared — searching now');
                 if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
               } else {
-                // Same message template, just update the number
-                loadingEl.textContent = queueMsg.replace(/\{depth\}/g, remaining);
+                // Update the countdown line in place (same text, new number)
+                _ffActiveLine.textContent = queueMsg.replace(/\{depth\}/g, remaining);
               }
             }, tickRate);
           }
         }).catch(function(){
-          // Queue endpoint unreachable — show a searching message anyway
-          loadingEl.textContent = pickMsg(SEARCHING_MSGS, q, '600', '');
+          addLine(pickMsg(SEARCHING_MSGS, q, '600', ''));
           console.info('[foamfactory-ai] queue endpoint unreachable — searching anyway');
         });
       }
