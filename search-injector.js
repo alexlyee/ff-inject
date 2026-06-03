@@ -267,10 +267,12 @@
             '<a href="' + href + '" style="font-family:montserratbold,sans-serif;font-weight:700;color:' + linkColor + ';text-decoration:none;font-size:18px;line-height:18px;flex:1;min-width:0;">' + esc(hit.name) + '</a>' +
             priceHTML +
           '</div>' +
-          (hit.code ? '<div style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;margin-top:2px;">' + esc(hit.code) + '</div>' : '') +
           (snippet ? '<div style="color:#656d78;font-size:14px;margin-top:4px;line-height:18px;">' + highlightTerms(esc(snippet), query) +
             '</div>' : '') +
-          breadcrumb +
+          ((breadcrumb || hit.code) ? '<div style="display:flex;align-items:baseline;margin-top:4px;">' +
+            breadcrumb +
+            (hit.code ? '<span style="font-family:monospace;font-size:11px;color:#c2c2c2;font-weight:400;margin-left:auto;flex-shrink:0;">' + esc(hit.code) + '</span>' : '') +
+            '</div>' : '') +
         '</div>' +
       '</div>';
   }
@@ -694,6 +696,11 @@
             '<div style="width:40%;height:14px;' + shimmer + '"></div></div>';
           skeletonContainer.appendChild(skel);
         }
+        // Reveal the container now — the skeleton IS the loading state, so the
+        // FOUC hide (which hides #content-item) should yield to it. Native
+        // content was already cleared above; only skeleton cards remain.
+        skeletonContainer.style.visibility = 'visible';
+        skeletonContainer.style.minHeight = '0';
       }
     }
 
