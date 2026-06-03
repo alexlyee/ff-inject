@@ -554,6 +554,22 @@
         searchForm.innerHTML = '<input type="search" name="Search" value="' + esc(q) + '" style="flex:1;padding:8px 12px;border:1px solid #ccc;border-radius:3px;font-size:14px;">' +
           '<button type="submit" style="padding:8px 20px;background:' + brand + ';color:#fff;border:none;border-radius:3px;font-weight:600;cursor:pointer;">Search</button>';
         container.parentNode.insertBefore(searchForm, container);
+        // VIEW 12/24/All selector (Miva only renders this when it has results)
+        var viewBar = document.createElement('div');
+        viewBar.style.cssText = 'margin:0 0 10px;font-size:13px;color:#656d78;display:flex;align-items:center;gap:12px;';
+        var currentPPP = parseInt(new URLSearchParams(location.search).get('ProductsPerPage'), 10) || PAGE_SIZE;
+        var baseUrl = location.pathname + '?Screen=SRCH&Search=' + encodeURIComponent(q);
+        viewBar.innerHTML = '<span>' + prodCount.textContent + '</span><span style="margin-left:auto;">View: ' +
+          [12, 24, MIVA_ALL_SENTINEL].map(function(n){
+            var label = n >= MIVA_ALL_SENTINEL ? 'All' : n;
+            var active = (n >= MIVA_ALL_SENTINEL && currentPPP >= MIVA_ALL_SENTINEL) || n === currentPPP;
+            return active
+              ? '<strong>' + label + '</strong>'
+              : '<a href="' + baseUrl + '&ProductsPerPage=' + n + '" style="color:' + brand + ';text-decoration:none;">' + label + '</a>';
+          }).join(' | ') + '</span>';
+        container.parentNode.insertBefore(viewBar, container);
+        // Remove the separate count line (now in viewBar)
+        prodCount.remove();
       }
       filtered.forEach(function(h, i){
         var tmp = document.createElement('div');
