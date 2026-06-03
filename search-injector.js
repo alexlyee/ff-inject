@@ -795,7 +795,16 @@
           } else {
             var remaining = depth;
             loadingEl.textContent = pickMsg(QUEUE_MSGS, q, '600', remaining);
-            console.info('[foamfactory-ai] queue depth: ' + depth + ' (' + msPerReq + 'ms/req, ~' + Math.round(depth * msPerReq / 1000 * 10) / 10 + 's est)');
+            // Calculate tick rate from REMAINING estimated time, not raw ms_per_request.
+            // The page load + /queue round-trip already ate some of the wait. If we
+            // tick at raw ms_per_request, the countdown is still at ~10 when results
+            // arrive and "searching" is never seen. Adjusting the tick rate so the
+            // countdown reaches 0 roughly when results are expected.
+            var elapsedSoFar = performance.now() - window._ffQueueStart;
+            var totalEstMs = depth * msPerReq;
+            var remainingMs = Math.max(totalEstMs - elapsedSoFar, depth * 10); // floor: 10ms/tick min
+            var tickRate = Math.round(remainingMs / depth);
+            console.info('[foamfactory-ai] queue depth: ' + depth + ' (' + msPerReq + 'ms/req, ~' + Math.round(totalEstMs / 1000 * 10) / 10 + 's est, ' + Math.round(elapsedSoFar) + 'ms already elapsed, ticking at ' + tickRate + 'ms)');
             window._ffLoadingInterval = setInterval(function(){
               remaining--;
               if (remaining <= 0) {
@@ -805,7 +814,7 @@
               } else {
                 loadingEl.textContent = pickMsg(QUEUE_MSGS, q, '600', remaining);
               }
-            }, msPerReq);
+            }, tickRate);
           }
         }).catch(function(){
           // Queue endpoint unreachable — show a searching message anyway
