@@ -604,9 +604,8 @@
           console.info('[foamfactory-ai] queue estimate deviation: predicted ' + estMs + 'ms, actual ' +
             actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms). ' +
             'Countdown at ' + countdownPos + ' of ' + window._ffQueueDepth + ' when results arrived.');
-        } else {
-          console.info('[foamfactory-ai] no queue detected — results in ' + actualMs + 'ms');
         }
+        // No extra log when queue was empty — "queue empty — searching now" already covers it
       }
       ffL.remove();
     }
