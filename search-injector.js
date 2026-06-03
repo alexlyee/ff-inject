@@ -67,7 +67,8 @@
       hideStyle.textContent += ' h3 { display: none; }';
     }
     document.head.appendChild(hideStyle);
-    setTimeout(function(){
+    // Store timeout ID so /queue handler can cancel + extend it once backend is confirmed alive
+    window._ffFoucTimeout = setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
       if (s) { s.remove(); console.warn('[foamfactory-ai] timeout — revealing native results'); }
       if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
@@ -762,6 +763,24 @@
         // Fire-and-forget: ask the backend how many are in the queue
         fetch(API.replace('/search', '/queue')).then(function(r){ return r.json(); }).then(function(qData){
           if (!qData || !document.getElementById('ff-loading')) return;
+          // Backend is alive — extend the FOUC timeout generously. The original
+          // 3s timeout protects against "backend never responds." Now that we
+          // have contact, give the search as long as the queue needs (30s cap).
+          var oldTimeout = document.getElementById('ff-ai-hide');
+          if (oldTimeout) {
+            // Can't cancel the original setTimeout by ID, but we can prevent
+            // it from aborting by clearing the _ffTimedOut flag approach:
+            // just remove + re-add the hide style with a fresh long timeout.
+            clearTimeout(window._ffFoucTimeout);
+            window._ffFoucTimeout = setTimeout(function(){
+              var s = document.getElementById('ff-ai-hide');
+              if (s) { s.remove(); console.warn('[foamfactory-ai] extended timeout — revealing native results'); }
+              if (window._ffLoadingInterval) { clearInterval(window._ffLoadingInterval); window._ffLoadingInterval = null; }
+              var ffL = document.getElementById('ff-loading'); if (ffL) ffL.remove();
+              window._ffTimedOut = true;
+            }, 30000);
+            console.info('[foamfactory-ai] backend alive — timeout extended to 30s');
+          }
           var depth = qData.depth || 0;
           var msPerReq = qData.ms_per_request || 80;
           window._ffQueueDepth = depth;
