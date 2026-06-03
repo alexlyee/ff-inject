@@ -334,9 +334,31 @@
   }
 
   function injectHits(hits, ffQ, elapsedMs){
-    if (!hits || !hits.length) return;
-
     var isSiteSearch = onSiteSearchPage();
+    var q = getQuery() || '';
+
+    // Zero results: show a helpful recovery page instead of a dead end.
+    if (!hits || !hits.length) {
+      var container = isSiteSearch
+        ? (document.querySelector('#content-item') || document.querySelector('.gsc-control-cse'))
+        : (IS_FBM() ? document.querySelector('#js-product-list') : document.querySelector('section.x-product-list:not(.t-featured-products)'));
+      if (container) {
+        var brand = isCanadaSite() ? '#bf221c' : '#08559a';
+        container.innerHTML = '<div style="padding:30px 0;text-align:center;">' +
+          '<p style="font-size:18px;color:#656d78;margin:0 0 12px;">No results found for <strong>"' + esc(q) + '"</strong></p>' +
+          '<p style="font-size:14px;color:#999;margin:0 0 20px;">Try a different search term, or browse our categories below.</p>' +
+          '<a href="/" style="display:inline-block;padding:10px 24px;background:' + brand + ';color:#fff;border-radius:3px;text-decoration:none;font-weight:600;">Browse All Products</a>' +
+          '</div>';
+      }
+      // Remove FOUC hide
+      var hs = document.getElementById('ff-ai-hide');
+      if (hs) hs.remove();
+      return;
+    }
+    // Remove skeleton loading + shimmer animation if present
+    var skelStyle = document.getElementById('ff-skeleton-style');
+    if (skelStyle) skelStyle.remove();
+
     var container;
 
     if (isSiteSearch) {
@@ -553,6 +575,31 @@
       });
     }
 
+    // Keyboard navigation: arrow keys move through results, Enter opens.
+    // Adds tabindex + focus outline. Accessibility win + power-user feature.
+    if (isSiteSearch) {
+      var focusIdx = -1;
+      function getCards(){ return container.querySelectorAll('[data-ai-type]'); }
+      function focusCard(idx){
+        var cards = getCards();
+        if (idx < 0 || idx >= cards.length) return;
+        if (focusIdx >= 0 && focusIdx < cards.length) cards[focusIdx].style.outline = '';
+        focusIdx = idx;
+        cards[focusIdx].style.outline = '2px solid ' + (isCanadaSite() ? '#bf221c' : '#08559a');
+        cards[focusIdx].scrollIntoView({block:'nearest', behavior:'smooth'});
+      }
+      document.addEventListener('keydown', function(e){
+        var cards = getCards();
+        if (!cards.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); focusCard(Math.min(focusIdx + 1, cards.length - 1)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); focusCard(Math.max(focusIdx - 1, 0)); }
+        else if (e.key === 'Enter' && focusIdx >= 0 && focusIdx < cards.length) {
+          var link = cards[focusIdx].querySelector('a[href]');
+          if (link) link.click();
+        }
+      });
+    }
+
     // Hide leftover Google CSE elements (search input box, branding bar) so only
     // AI results remain. Targets CSE sub-elements, NOT .gsc-control-cse itself
     // (which may be our container). On the demo proxies, CSE scripts are blocked
@@ -656,6 +703,32 @@
         var radio = document.querySelector(sel);
         if (radio) radio.checked = true;
       });
+    }
+
+    // Skeleton loading: show placeholder cards while fetch is in progress.
+    // Gives a polished feel even on slower queries. Removed by injectHits().
+    if (isSiteSearch) {
+      var skeletonContainer = document.querySelector('#content-item') || document.querySelector('.gsc-control-cse');
+      if (skeletonContainer) {
+        skeletonContainer.innerHTML = '';
+        var skeletonCSS = 'padding:14px 0;border-bottom:1px solid #eee;display:flex;gap:14px;';
+        var shimmer = 'background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:ffShimmer 1.5s infinite;border-radius:4px;';
+        // Inject shimmer keyframes
+        var shimmerStyle = document.createElement('style');
+        shimmerStyle.id = 'ff-skeleton-style';
+        shimmerStyle.textContent = '@keyframes ffShimmer{0%{background-position:200% 0}to{background-position:-200% 0}}';
+        document.head.appendChild(shimmerStyle);
+        for (var sk = 0; sk < 4; sk++) {
+          var skel = document.createElement('div');
+          skel.className = 'ff-skeleton';
+          skel.style.cssText = skeletonCSS;
+          skel.innerHTML = '<div style="width:80px;height:80px;' + shimmer + '"></div>' +
+            '<div style="flex:1;"><div style="width:60%;height:18px;margin-bottom:10px;' + shimmer + '"></div>' +
+            '<div style="width:90%;height:14px;margin-bottom:6px;' + shimmer + '"></div>' +
+            '<div style="width:40%;height:14px;' + shimmer + '"></div></div>';
+          skeletonContainer.appendChild(skel);
+        }
+      }
     }
 
     var payload = {
