@@ -761,7 +761,7 @@
           return msg.replace(/\{query\}/g, q).replace(/\{count\}/g, count || '600').replace(/\{depth\}/g, depth || '');
         }
 
-        loadingEl.textContent = 'Connecting to FF HQ...';
+        loadingEl.textContent = 'Connecting to Foam Factory HQ...';
         loadingAnchor.parentNode.insertBefore(loadingEl, loadingAnchor);
         console.info('[foamfactory-ai] connecting to search backend...');
         window._ffQueueStart = performance.now();
