@@ -1,10 +1,9 @@
-/* Foam Factory AI Search — storefront DOM injector.
+/* Foam Factory AI Search — storefront DOM injector (foambymail.com).
    Runs on every page via the head_tag resource group. On SRCH pages, fetches
    AI-ranked results from the Cloudflare-tunneled backend and replaces Miva's
-   native product list with AI hits using Miva's own .x-product-list markup.
-   Categories and Miva pages surface alongside products; each hit renders with
-   a type badge so customers can tell products apart from categories apart from
-   resource pages at a glance. */
+   native product list with AI hits. Categories and Miva pages surface
+   alongside products; each hit renders with a type badge so customers can
+   tell products apart from categories apart from resource pages at a glance. */
 (function(){
   var API = 'https://debian-rise-subscribers-schools.trycloudflare.com/search';
   // Injector build tag — shown in the console banner so a live/over-break page
@@ -39,11 +38,15 @@
       location.pathname.indexOf('/search.html') !== -1) {
     var hideStyle = document.createElement('style');
     hideStyle.id = 'ff-ai-hide';
-    hideStyle.textContent = '#js-product-list, section.x-product-list:not(.t-featured-products), .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; } [data-ai-type] { transition: background 0.15s, box-shadow 0.15s; cursor: pointer; } [data-ai-type]:hover { background: #f5f7fa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); } [data-ai-type]:hover img { transform: scale(1.05); } [data-ai-type] img { transition: transform 0.2s; }';
+    hideStyle.textContent = '#js-product-list, .gsc-control-cse, #content-item, .gcse-searchresults-only, .gsc-above-wrapper-area { visibility: hidden; min-height: 200px; } [data-ai-type] { transition: background 0.15s, box-shadow 0.15s; cursor: pointer; } [data-ai-type]:hover { background: #f5f7fa; box-shadow: 0 2px 8px rgba(0,0,0,0.06); } [data-ai-type]:hover img { transform: scale(1.05); } [data-ai-type] img { transition: transform 0.2s; }';
     document.head.appendChild(hideStyle);
     setTimeout(function(){
       var s = document.getElementById('ff-ai-hide');
       if (s) { s.remove(); console.warn('[foamfactory-ai] timeout — revealing native results'); }
+      var sk = document.getElementById('ff-skeleton-style');
+      if (sk) sk.remove();
+      document.querySelectorAll('.ff-skeleton').forEach(function(el){ el.remove(); });
+      window._ffTimedOut = true;  // suppress late fetch results
     }, 3000);
   }
 
@@ -150,11 +153,9 @@
     if (isCanadaSite() && hit.canada_url_path) {
       return appendTrackingParam(hit.canada_url_path, hash);
     }
-    // location.origin lets the same jsDelivr-hosted script work on both
-    // competitivefoam.com (dev) and foambymail.com (live) without rebuild.
+    // location.origin keeps URLs working on both the live site and proxy demos.
     // Absolute url_path (e.g. blog links back to foambymail.com) are respected
-    // as-is; relative url_path resolves against whichever store is serving
-    // the page the customer is currently on.
+    // as-is; relative url_path resolves against the current origin.
     var origin = location.origin;
     var base;
     if (hit.url_path) {
@@ -179,9 +180,7 @@
     // /Merchant2/, and THAT variant exists for every catalog image.
     // Transform: graphics/00000001/foo.jpg → Merchant2/graphics/00000001/1/foo.webp
     //
-    // location.origin keeps this working on competitivefoam.com (dev) and
-    // foambymail.com (live) without rebuild — both Miva installs follow the
-    // same image-pipeline convention.
+    // location.origin keeps this working on both the live site and proxy demos.
     if (hit.image) {
       var rel = hit.image;
       if (rel.indexOf('http') === 0) return rel;
@@ -191,22 +190,6 @@
       return location.origin + '/' + path;
     }
     return PLACEHOLDER_URI;
-  }
-
-  // Detect which theme we're on: Shadows (competitivefoam) vs 2016_Framework (foambymail).
-  // Lazy — evaluated on first use (after DOMContentLoaded) so the DOM query works.
-  var _is_fbm = null;
-  function IS_FBM() {
-    if (_is_fbm === null) {
-      // Detect foambymail.com (2016_Framework) vs competitivefoam.com (Shadows).
-      // On the live site, hostname contains 'foambymail'. On proxy demos, hostname
-      // is a trycloudflare.com tunnel — fall back to DOM checks + FF_CANADA flag.
-      _is_fbm = !!document.querySelector('#js-product-list') ||
-                !!document.querySelector('#js-SRCH') ||
-                location.hostname.indexOf('foambymail') !== -1 ||
-                !!window.FF_CANADA;
-    }
-    return _is_fbm;
   }
 
   function siteSearchCardHTML(hit, hash){
@@ -297,45 +280,28 @@
     var snippet = (hit.snippet || '').substring(0, 100);
     if (snippet && hit.snippet && hit.snippet.length > 100) snippet += '...';
 
-    if (IS_FBM()) {
-      // foambymail.com 2016_Framework layout: 3-column row (image | name+desc | price)
-      var priceHTML = startPrice
-        ? '<p class="starting-price"><strong>Starting at ' + startPrice + '</strong></p>'
-        : (price ? '<p class="starting-price"><strong>' + price + '</strong></p>' : '');
-      return '' +
-        '<div class="column whole category-product" data-ai-rank="1" data-ai-type="' + esc(type) + '">' +
-          '<a href="' + href + '" title="' + esc(hit.name) + '" class="column one-third large-one-sixth medium-one-sixth small-one-sixth">' +
-            '<span class="flag flag--">' +
-              '<img src="' + imgSrc + '" alt="' + esc(hit.name) + '" loading="lazy" onerror="this.src=\'' + PLACEHOLDER_URI + '\';this.onerror=null">' +
-            '</span>' +
-          '</a>' +
-          '<div class="column two-thirds large-three-sixths medium-three-sixths small-three-sixths">' +
-            '<h4><a href="' + href + '" class="blue"' + (isCanadaSite() ? ' style="color:#bf221c;"' : '') + '>' + esc(hit.name) + '</a></h4>' +
-            (hit.code ? '<span class="product-code">Code: ' + esc(hit.code) + '</span>' : '') +
-            (snippet ? '<p>' + esc(snippet) + ' <a href="' + href + '"><span class="decoration">Read More</span></a></p>' : '') +
-          '</div>' +
-          '<div class="column whole large-two-sixths medium-two-sixths small-two-sixths align-center">' +
-            '<div class="float-none large-float-right medium-float-right small-float-right">' +
-              priceHTML +
-              '<a href="' + href + '"><span class="more-info orange decoration">More Info &raquo;</span></a>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-    }
-
-    // Shadows framework (competitivefoam.com) — existing card layout
+    // foambymail.com 2016_Framework layout: 3-column row (image | name+desc | price)
+    var priceHTML = startPrice
+      ? '<p class="starting-price"><strong>Starting at ' + startPrice + '</strong></p>'
+      : (price ? '<p class="starting-price"><strong>' + price + '</strong></p>' : '');
     return '' +
-      '<div class="o-layout__item u-text-center x-product-list__item" data-ai-rank="1" data-ai-type="' + esc(type) + '">' +
-        '<a class="u-block x-product-list__link" href="' + href + '" title="' + esc(hit.name) + '">' +
-          '<figure class="x-product-list__figure">' +
-            '<img class="x-product-list__image" src="' + imgSrc + '" alt="" loading="lazy" style="width:100%;height:auto;display:block;margin:0 auto" width="360" height="360" onerror="this.src=\'' + PLACEHOLDER_URI + '\';this.onerror=null">' +
-            '<figcaption>' +
-              '<span style="' + badgeCss + '">' + esc(badgeText) + '</span><br>' +
-              '<strong class="x-product-list__name">' + esc(hit.name) + '</strong>' +
-              (price ? '<span class="x-product-list__price">' + price + '</span>' : '') +
-            '</figcaption>' +
-          '</figure>' +
+      '<div class="column whole category-product" data-ai-rank="1" data-ai-type="' + esc(type) + '">' +
+        '<a href="' + href + '" title="' + esc(hit.name) + '" class="column one-third large-one-sixth medium-one-sixth small-one-sixth">' +
+          '<span class="flag flag--">' +
+            '<img src="' + imgSrc + '" alt="' + esc(hit.name) + '" loading="lazy" onerror="this.src=\'' + PLACEHOLDER_URI + '\';this.onerror=null">' +
+          '</span>' +
         '</a>' +
+        '<div class="column two-thirds large-three-sixths medium-three-sixths small-three-sixths">' +
+          '<h4><a href="' + href + '" class="blue"' + (isCanadaSite() ? ' style="color:#bf221c;"' : '') + '>' + esc(hit.name) + '</a></h4>' +
+          (hit.code ? '<span class="product-code">Code: ' + esc(hit.code) + '</span>' : '') +
+          (snippet ? '<p>' + esc(snippet) + ' <a href="' + href + '"><span class="decoration">Read More</span></a></p>' : '') +
+        '</div>' +
+        '<div class="column whole large-two-sixths medium-two-sixths small-two-sixths align-center">' +
+          '<div class="float-none large-float-right medium-float-right small-float-right">' +
+            priceHTML +
+            '<a href="' + href + '"><span class="more-info orange decoration">More Info &raquo;</span></a>' +
+          '</div>' +
+        '</div>' +
       '</div>';
   }
 
@@ -347,7 +313,7 @@
     if (!hits || !hits.length) {
       var container = isSiteSearch
         ? (document.querySelector('#content-item') || document.querySelector('.gsc-control-cse'))
-        : (IS_FBM() ? document.querySelector('#js-product-list') : document.querySelector('section.x-product-list:not(.t-featured-products)'));
+        : document.querySelector('#js-product-list');
       if (container) {
         var brand = isCanadaSite() ? '#bf221c' : '#08559a';
         container.innerHTML = '<div style="padding:30px 0;text-align:center;">' +
@@ -379,7 +345,7 @@
       } else {
         container.innerHTML = '';
       }
-    } else if (IS_FBM()) {
+    } else {
       // foambymail.com product search: product list is #js-product-list
       container = document.querySelector('#js-product-list');
       if (!container) {
@@ -392,23 +358,6 @@
           noResults.closest('.row').replaceWith(container);
         } else {
           var host = document.querySelector('#js-SRCH .row') || document.querySelector('#js-SRCH') || document.body;
-          host.appendChild(container);
-        }
-      } else {
-        container.innerHTML = '';
-      }
-    } else {
-      // Shadows (competitivefoam.com): product list is section.x-product-list
-      container = document.querySelector('section.x-product-list:not(.t-featured-products)');
-      if (!container) {
-        var noResults = Array.from(document.querySelectorAll('h2, h3, p, div'))
-          .find(function(el){ return /no products matched/i.test(el.textContent || ''); });
-        container = document.createElement('section');
-        container.className = 'o-layout u-grids-2 u-grids-3--l x-product-list';
-        if (noResults && noResults.parentNode) {
-          noResults.parentNode.replaceChild(container, noResults);
-        } else {
-          var host = document.querySelector('main') || document.querySelector('#js-SRCH') || document.body;
           host.appendChild(container);
         }
       } else {
@@ -430,8 +379,8 @@
         if (ca) return !!h.canada_url_path || urlIsCanada;   // Canada-available only
         return !urlIsCanada;                                  // US: drop Canada-only
       });
-    } else if (IS_FBM()) {
-      // Product search on FBM: products only, exclude Canada-only.
+    } else {
+      // Product search: products only, exclude Canada-only.
       // Canada-only products have url_path pointing to canada.foambymail.com
       // AND no US-specific url_path (url_path === canada_url_path).
       filtered = hits.filter(function(h){
@@ -440,15 +389,6 @@
                            (!h.url_path.match(/Product_Code=/));
         return !isCanadaOnly;
       });
-    } else {
-      // Shadows/dev store: all types with banner
-      filtered = hits;
-      var bannerClass = 'o-layout__item u-width-12 u-text-center u-font-small';
-      var banner = document.createElement('div');
-      banner.className = bannerClass;
-      banner.style.cssText = 'padding:10px;background:#f7f9ff;border-left:3px solid #2d6cdf;margin-bottom:12px;color:#2d6cdf;';
-      banner.textContent = 'AI-ranked results for "' + getQuery() + '" (' + hits.length + ' matches)';
-      container.appendChild(banner);
     }
 
     // Use the site search card layout (with badges + breadcrumbs) on the
@@ -548,6 +488,7 @@
         cards.forEach(function(c){ c.remove(); });
         activeFiltered = filtered.filter(function(h){ return activeTypes[h.type || 'product']; });
         shown = 0;
+        if (typeof focusIdx !== 'undefined') focusIdx = -1;  // reset keyboard nav
         updateCount();
         renderNext();
       }
@@ -742,7 +683,7 @@
       surface: isSiteSearch ? 'site' : 'product',  // which search page (analytics)
       session_id: sessionId()                       // anon distinct-visitor tag
     };
-    if (IS_FBM() && !isSiteSearch) payload.types = ['product'];
+    if (!isSiteSearch) payload.types = ['product'];
 
     var t0 = performance.now();
     fetch(API, {
@@ -755,9 +696,12 @@
         var tFetch = Math.round(performance.now() - t0);
         // Kill switch: backend says search is disabled → render nothing,
         // reveal native Miva results. Site-wide off switch, no redeploy.
-        if (data.disabled) {
+        if (data.disabled || window._ffTimedOut) {
           var hs = document.getElementById('ff-ai-hide');
           if (hs) hs.remove();
+          var sk = document.getElementById('ff-skeleton-style');
+          if (sk) sk.remove();
+          document.querySelectorAll('.ff-skeleton').forEach(function(el){ el.remove(); });
           return;
         }
         injectHits(data.hits || [], data.ff_q, data.elapsed_ms);
@@ -769,7 +713,7 @@
           backendMs: data.elapsed_ms, fetchMs: tFetch, renderMs: tTotal - tFetch,
           totalMs: tTotal, hitsReturned: (data.hits || []).length,
           hitsRendered: document.querySelectorAll('[data-ai-type]').length,
-          ff_q: data.ff_q, isFBM: IS_FBM()
+          ff_q: data.ff_q
         };
         // Concise auto-summary so over-break console-watching shows each query
         // (build · query · count · total ms) without anyone typing ffDebug().
@@ -780,6 +724,9 @@
         console.warn('[foamfactory-ai] search failed:', err);
         var hideStyle = document.getElementById('ff-ai-hide');
         if (hideStyle) hideStyle.remove();
+        var sk = document.getElementById('ff-skeleton-style');
+        if (sk) sk.remove();
+        document.querySelectorAll('.ff-skeleton').forEach(function(el){ el.remove(); });
       });
   }
 
@@ -792,7 +739,7 @@
       '\n  backend: ' + d.backendMs + 'ms  fetch: ' + d.fetchMs + 'ms  render: ' + d.renderMs +
       'ms  total: ' + d.totalMs + 'ms' +
       '\n  hits returned: ' + d.hitsReturned + '  rendered: ' + d.hitsRendered +
-      '  isFBM: ' + d.isFBM + '  ff_q: ' + d.ff_q
+      '  ff_q: ' + d.ff_q
     );
     return d;
   };
