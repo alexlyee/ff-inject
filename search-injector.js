@@ -597,15 +597,15 @@
       // Log how far off the countdown was from when results actually arrived
       if (window._ffQueueStart) {
         var actualMs = Math.round(performance.now() - window._ffQueueStart);
-        if (window._ffQueueDepth && window._ffQueueDepth > 0) {
-          var estMs = window._ffQueueDepth * (window._ffQueueMsPerReq || 80);
-          var deviation = actualMs - estMs;
+        var totalEst = window._ffTotalEstMs || 0;
+        if (totalEst > 0) {
+          var deviation = actualMs - totalEst;
           var countdownPos = (window._ffCountdownRemaining !== undefined) ? window._ffCountdownRemaining : 0;
-          console.info('[foamfactory-ai] queue estimate deviation: predicted ' + estMs + 'ms, actual ' +
-            actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms). ' +
-            'Countdown at ' + countdownPos + ' of ' + window._ffQueueDepth + ' when results arrived.');
+          var depth = window._ffQueueDepth || 0;
+          console.info('[foamfactory-ai] response time: predicted ' + totalEst + 'ms, actual ' +
+            actualMs + 'ms (' + (deviation > 0 ? '+' : '') + deviation + 'ms).' +
+            (depth > 0 ? ' Countdown at ' + countdownPos + ' of ' + depth + '.' : ''));
         }
-        // No extra log when queue was empty — "queue empty — searching now" already covers it
       }
       ffL.remove();
     }
@@ -799,6 +799,23 @@
           var msPerReq = qData.ms_per_request || 80;
           window._ffQueueDepth = depth;
           window._ffQueueMsPerReq = msPerReq;
+          // Estimate total response time:
+          //   queue_wait = depth × ms_per_request  (everyone ahead)
+          //   my_search  = ms_per_request           (my own processing)
+          //   network    = overhead from page load + round-trips (measured as elapsed so far)
+          var elapsedSoFar = Math.round(performance.now() - window._ffQueueStart);
+          var queueWait = depth * msPerReq;
+          var mySearch = msPerReq;
+          var networkEst = elapsedSoFar;  // time already burned = network/page overhead
+          var totalEst = queueWait + mySearch + networkEst;
+          window._ffTotalEstMs = totalEst;
+
+          console.info('[foamfactory-ai] response estimate: ' +
+            'queue=' + queueWait + 'ms (' + depth + '×' + msPerReq + ') + ' +
+            'search=' + mySearch + 'ms + ' +
+            'network=' + networkEst + 'ms = ' +
+            '~' + totalEst + 'ms total');
+
           if (depth <= 0) {
             addLine(pickMsg(SEARCHING_MSGS, q, '600', ''));
             console.info('[foamfactory-ai] queue empty — searching now (' + msPerReq + 'ms avg)');
@@ -806,14 +823,12 @@
             var remaining = depth;
             var queueMsg = pickMsg(QUEUE_MSGS, q, '600', '{depth}');
             var searchingMsg = pickMsg(SEARCHING_MSGS, q, '600', '');
-            // The countdown line updates in-place (only the number changes)
             _ffActiveLine = addLine(queueMsg.replace(/\{depth\}/g, remaining));
             window._ffCountdownRemaining = remaining;
-            var elapsedSoFar = performance.now() - window._ffQueueStart;
-            var totalEstMs = depth * msPerReq;
-            var remainingMs = Math.max(totalEstMs - elapsedSoFar, depth * 10);
+            // Adaptive tick rate: total estimated remaining / depth
+            var remainingMs = Math.max(totalEst - elapsedSoFar, depth * 10);
             var tickRate = Math.round(remainingMs / depth);
-            console.info('[foamfactory-ai] queue depth: ' + depth + ' (' + msPerReq + 'ms/req, ~' + Math.round(totalEstMs / 1000 * 10) / 10 + 's est, ' + Math.round(elapsedSoFar) + 'ms already elapsed, ticking at ' + tickRate + 'ms)');
+            console.info('[foamfactory-ai] countdown: ' + depth + ' positions at ' + tickRate + 'ms/tick (' + Math.round(remainingMs) + 'ms remaining)');
             window._ffLoadingInterval = setInterval(function(){
               remaining--;
               window._ffCountdownRemaining = remaining;
